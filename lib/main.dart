@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'database/db_helper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    final dbHelper = DBHelper();
+    final db = await dbHelper.database;
+    print('✓ Database initialized successfully!');
+  } catch (e) {
+    print('✗ Error initializing database: $e');
+  }
+
   runApp(const MyApp());
 }
 
@@ -16,7 +28,8 @@ class MyApp extends StatelessWidget {
       home: const SignUpPage(),
       routes: {
         '/login': (context) => const LoginPage(),
-        '/home': (context) => const HomePage(username: '', role: ''),
+        '/dashboard': (context) =>
+            const StudentDashboard(username: '', role: ''),
       },
     );
   }
@@ -47,8 +60,7 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  void _handleSignUp() {
-    // Validate inputs
+  void _handleSignUp() async {
     if (_usernameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
@@ -67,24 +79,53 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
 
-    // Navigate to home page
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            HomePage(username: _usernameController.text, role: _selectedRole),
-      ),
+    final dbHelper = DBHelper();
+    final existingUsername = await dbHelper.getUserByUsername(
+      _usernameController.text,
     );
+    final existingEmail = await dbHelper.getUserByEmail(_emailController.text);
+
+    if (existingUsername != null) {
+      _showSnackBar('Username already exists');
+      return;
+    }
+
+    if (existingEmail != null) {
+      _showSnackBar('Email already exists');
+      return;
+    }
+
+    final success = await dbHelper.insertUser(
+      username: _usernameController.text,
+      email: _emailController.text,
+      password: _passwordController.text,
+      role: _selectedRole,
+    );
+
+    if (success) {
+      _showSnackBar('Sign up successful!');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => StudentDashboard(
+            username: _usernameController.text,
+            role: _selectedRole,
+          ),
+        ),
+      );
+    } else {
+      _showSnackBar('Error creating account. Try again.');
+    }
   }
 
   void _handleSocialSignUp(String provider) {
     _showSnackBar('Signing up with $provider...');
-    // Simulate social sign up
     Future.delayed(const Duration(seconds: 1), () {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => HomePage(username: 'User', role: _selectedRole),
+          builder: (context) =>
+              StudentDashboard(username: 'User', role: _selectedRole),
         ),
       );
     });
@@ -118,7 +159,6 @@ class _SignUpPageState extends State<SignUpPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo/Title
                   const Text(
                     'S.A.S.L\nTranslator',
                     textAlign: TextAlign.center,
@@ -130,8 +170,6 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                   ),
                   const SizedBox(height: 40),
-
-                  // Sign up card
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -156,39 +194,29 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                         const SizedBox(height: 24),
-
-                        // Username field
                         _buildTextField(
                           controller: _usernameController,
                           hintText: 'Username',
                         ),
                         const SizedBox(height: 16),
-
-                        // Email field
                         _buildTextField(
                           controller: _emailController,
                           hintText: 'Email',
                           keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 16),
-
-                        // Create Password field
                         _buildTextField(
                           controller: _passwordController,
                           hintText: 'Create Password',
                           obscureText: true,
                         ),
                         const SizedBox(height: 16),
-
-                        // Confirm Password field
                         _buildTextField(
                           controller: _confirmPasswordController,
                           hintText: 'Confirm Password',
                           obscureText: true,
                         ),
                         const SizedBox(height: 24),
-
-                        // Sign up as label
                         const Text(
                           'Sign up as:',
                           style: TextStyle(
@@ -198,8 +226,6 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-
-                        // Role selection buttons
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -209,8 +235,6 @@ class _SignUpPageState extends State<SignUpPage> {
                           ],
                         ),
                         const SizedBox(height: 24),
-
-                        // Sign Up Button
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -233,8 +257,6 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        // Divider with text
                         Row(
                           children: [
                             Expanded(
@@ -258,8 +280,6 @@ class _SignUpPageState extends State<SignUpPage> {
                           ],
                         ),
                         const SizedBox(height: 20),
-
-                        // Social sign up buttons
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -286,8 +306,6 @@ class _SignUpPageState extends State<SignUpPage> {
                           ],
                         ),
                         const SizedBox(height: 20),
-
-                        // Already have account
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -405,7 +423,6 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 }
 
-// Login Page
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -424,19 +441,35 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  void _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+      _showSnackBar('Please fill in all fields');
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HomePage(username: 'User', role: 'Student'),
-      ),
+    final dbHelper = DBHelper();
+    final user = await dbHelper.verifyLogin(
+      _emailController.text,
+      _passwordController.text,
+    );
+
+    if (user != null) {
+      _showSnackBar('Login successful!');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              StudentDashboard(username: user['username'], role: user['role']),
+        ),
+      );
+    } else {
+      _showSnackBar('Invalid email or password');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 
@@ -572,20 +605,120 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// Home Page
-class HomePage extends StatelessWidget {
+class StudentDashboard extends StatefulWidget {
   final String username;
   final String role;
 
-  const HomePage({super.key, required this.username, required this.role});
+  const StudentDashboard({
+    super.key,
+    required this.username,
+    required this.role,
+  });
+
+  @override
+  State<StudentDashboard> createState() => _StudentDashboardState();
+}
+
+class _StudentDashboardState extends State<StudentDashboard> {
+  late YoutubePlayerController _controller1;
+  late YoutubePlayerController _controller2;
+  late YoutubePlayerController _controller3;
+  late YoutubePlayerController _controller4;
+  late YoutubePlayerController _controller5;
+
+  final List<Lesson> lessons = [
+    Lesson(
+      id: 1,
+      title: 'Lesson 1: Basic Greetings',
+      description: 'Learn basic greeting signs in South African Sign Language',
+      videoId: 'dQw4w9WgXcQ',
+    ),
+    Lesson(
+      id: 2,
+      title: 'Lesson 2: Numbers 1-10',
+      description: 'Master counting from 1 to 10 in SASL',
+      videoId: 'jNQXAC9IVRw',
+    ),
+    Lesson(
+      id: 3,
+      title: 'Lesson 3: Alphabet & Fingerspelling',
+      description: 'Learn the SASL alphabet and fingerspelling',
+      videoId: '9bZkp7q19f0',
+    ),
+    Lesson(
+      id: 4,
+      title: 'Lesson 4: Common Phrases',
+      description: 'Everyday phrases and conversations in SASL',
+      videoId: 'kffacxfA7g4',
+    ),
+    Lesson(
+      id: 5,
+      title: 'Lesson 5: Family & Relationships',
+      description: 'Signs for family members and relationships',
+      videoId: 'L8DMsy0ER740',
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeControllers();
+  }
+
+  void _initializeControllers() {
+    _controller1 = YoutubePlayerController(
+      initialVideoId: lessons[0].videoId,
+      flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+    );
+    _controller2 = YoutubePlayerController(
+      initialVideoId: lessons[1].videoId,
+      flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+    );
+    _controller3 = YoutubePlayerController(
+      initialVideoId: lessons[2].videoId,
+      flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+    );
+    _controller4 = YoutubePlayerController(
+      initialVideoId: lessons[3].videoId,
+      flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+    );
+    _controller5 = YoutubePlayerController(
+      initialVideoId: lessons[4].videoId,
+      flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller1.dispose();
+    _controller2.dispose();
+    _controller3.dispose();
+    _controller4.dispose();
+    _controller5.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SASL Translator'),
+        title: const Text('SASL Student Dashboard'),
         backgroundColor: Colors.blue.shade600,
+        elevation: 0,
         actions: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Center(
+              child: Text(
+                widget.username,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
@@ -603,61 +736,148 @@ class HomePage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.blue.shade100, Colors.purple.shade50],
+            colors: [Colors.blue.shade50, Colors.purple.shade50],
           ),
         ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome, ${widget.username}!',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Learn South African Sign Language',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  _buildLessonCard(lessons[0], _controller1),
+                  const SizedBox(height: 20),
+                  _buildLessonCard(lessons[1], _controller2),
+                  const SizedBox(height: 20),
+                  _buildLessonCard(lessons[2], _controller3),
+                  const SizedBox(height: 20),
+                  _buildLessonCard(lessons[3], _controller4),
+                  const SizedBox(height: 20),
+                  _buildLessonCard(lessons[4], _controller5),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLessonCard(Lesson lesson, YoutubePlayerController controller) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+            child: YoutubePlayer(
+              controller: controller,
+              showVideoProgressIndicator: true,
+              progressIndicatorColor: Colors.red,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.check_circle, size: 100, color: Colors.green),
-                const SizedBox(height: 24),
                 Text(
-                  'Welcome, $username!',
+                  lesson.title,
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Text(
-                  'Role: $role',
-                  style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+                  lesson.description,
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
-                const SizedBox(height: 40),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${lesson.title} marked as complete!'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade600,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ],
-                  ),
-                  child: const Column(
-                    children: [
-                      Icon(Icons.sign_language, size: 60, color: Colors.blue),
-                      SizedBox(height: 16),
-                      Text(
-                        'Start translating sign language!',
-                        style: TextStyle(fontSize: 16, color: Colors.black87),
-                        textAlign: TextAlign.center,
+                    ),
+                    child: const Text(
+                      'Mark as Complete',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
+}
+
+class Lesson {
+  final int id;
+  final String title;
+  final String description;
+  final String videoId;
+
+  Lesson({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.videoId,
+  });
 }
