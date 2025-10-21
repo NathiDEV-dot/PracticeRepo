@@ -1,229 +1,293 @@
 import 'package:flutter/material.dart';
 
-class VideoEditor extends StatefulWidget {
-  const VideoEditor({super.key});
+class ParentDashboard extends StatefulWidget {
+  const ParentDashboard({super.key});
 
   @override
-  State<VideoEditor> createState() => _VideoEditorState();
+  State<ParentDashboard> createState() => _ParentDashboardState();
 }
 
-class _VideoEditorState extends State<VideoEditor> {
-  bool _enableZoom = false;
+class _ParentDashboardState extends State<ParentDashboard> {
+  int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _getBackgroundColor(),
       appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: _getTextColor()),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text('EDIT VIDEO', style: TextStyle(color: _getTextColor())),
+        title: const Text('Parent Dashboard'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          ElevatedButton(
+          IconButton(
+            icon: Icon(Icons.notifications, color: _getTextColor()),
             onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF667EEA),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Done'),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Video Preview
-            Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.grey[800],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 80,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.play_arrow,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'VIDEO PREVIEW',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+      body: _buildBody(),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
 
-            // Timeline
-            Text(
-              '🎬 TIMELINE:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: _getTextColor(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              height: 60,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: _getCardColor(),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _getBorderColor()),
-              ),
-              child: Column(
-                children: [
-                  // Timeline segments
-                  Expanded(
-                    child: Row(
-                      children: [
-                        _buildTimelineSegment(true),
-                        _buildTimelineSegment(true),
-                        _buildTimelineSegment(true),
-                        _buildTimelineSegment(false),
-                        _buildTimelineSegment(false),
-                        _buildTimelineSegment(true),
-                        _buildTimelineSegment(true),
-                        _buildTimelineSegment(true),
-                      ],
-                    ),
-                  ),
-                  // Time labels
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '0:00',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _getTextColor().withOpacity(0.6),
-                        ),
-                      ),
-                      Text(
-                        '3:45',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _getTextColor().withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+  Widget _buildBody() {
+    switch (_currentIndex) {
+      case 0:
+        return _buildOverviewTab();
+      case 1:
+        return _buildChildProgressTab();
+      case 2:
+        return _buildProfileTab();
+      default:
+        return _buildOverviewTab();
+    }
+  }
 
-            // Editing Tools
-            Text(
-              '✂️ EDITING TOOLS:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: _getTextColor(),
+  Widget _buildOverviewTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome Card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF9800), Color(0xFFF57C00)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildToolButton('Trim Start', Icons.content_cut),
-                _buildToolButton('Trim End', Icons.content_cut),
-                _buildToolButton('Split', Icons.call_split),
-                _buildToolButton('Zoom Area', Icons.zoom_in),
-                _buildToolButton('Delete Segment', Icons.delete),
+                Text(
+                  'Supporting Young Learners',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Monitor your child\'s SASL learning progress',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 24),
 
-            // Zoom Settings
-            Text(
-              '🔍 ZOOM:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: _getTextColor(),
-              ),
+          // Child Summary
+          Text(
+            'Child Summary',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: _getTextColor(),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _getCardColor(),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _getBorderColor()),
+          ),
+          const SizedBox(height: 16),
+          _buildChildCard('Lerato M.', 'Grade 4', '65%', Icons.person),
+          const SizedBox(height: 24),
+
+          // Quick Stats
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  title: 'Lessons Completed',
+                  value: '8',
+                  icon: Icons.check_circle,
+                  color: Colors.green,
+                ),
               ),
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: _enableZoom,
-                    onChanged: (value) {
-                      setState(() => _enableZoom = value!);
-                    },
-                    activeColor: const Color(0xFF667EEA),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Enable Digital Zoom',
-                      style: TextStyle(fontSize: 14, color: _getTextColor()),
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  title: 'Current Streak',
+                  value: '5 days',
+                  icon: Icons.local_fire_department,
+                  color: Colors.orange,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  title: 'Time Spent',
+                  value: '4.2h',
+                  icon: Icons.timer,
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  title: 'Next Lesson',
+                  value: 'Tomorrow',
+                  icon: Icons.schedule,
+                  color: Colors.purple,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTimelineSegment(bool isFilled) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 1),
-        decoration: BoxDecoration(
-          color: isFilled ? const Color(0xFF667EEA) : _getBorderColor(),
-          borderRadius: BorderRadius.circular(2),
-        ),
-        height: 20,
+  Widget _buildChildCard(
+    String name,
+    String grade,
+    String progress,
+    IconData icon,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _getBorderColor()),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF9800).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFFFF9800)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _getTextColor(),
+                  ),
+                ),
+                Text(
+                  grade,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _getTextColor().withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'Progress',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _getTextColor().withOpacity(0.6),
+                ),
+              ),
+              Text(
+                progress,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFFFF9800),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildToolButton(String text, IconData icon) {
-    return OutlinedButton.icon(
-      onPressed: () {},
-      icon: Icon(icon, size: 16),
-      label: Text(text),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: _getTextColor(),
-        side: BorderSide(color: _getBorderColor()),
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _getBorderColor()),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: _getTextColor(),
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: _getTextColor().withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChildProgressTab() {
+    return Center(
+      child: Text(
+        'Child Progress Tab',
+        style: TextStyle(color: _getTextColor()),
+      ),
+    );
+  }
+
+  Widget _buildProfileTab() {
+    return Center(
+      child: Text('Profile Tab', style: TextStyle(color: _getTextColor())),
+    );
+  }
+
+  BottomNavigationBar _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      currentIndex: _currentIndex,
+      onTap: (index) => setState(() => _currentIndex = index),
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: _getCardColor(),
+      selectedItemColor: const Color(0xFFFF9800),
+      unselectedItemColor: _getTextColor().withOpacity(0.5),
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Overview'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.trending_up),
+          label: 'Progress',
+        ),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+      ],
     );
   }
 
