@@ -10,7 +10,7 @@ class LessonCreation extends StatefulWidget {
 class _LessonCreationState extends State<LessonCreation> {
   final _titleController = TextEditingController();
   bool _isRecording = false;
-  Duration _recordingTime = const Duration(minutes: 2, seconds: 45);
+  final Duration _recordingTime = const Duration(minutes: 2, seconds: 45);
   final Map<String, bool> _selectedGrades = {
     'Grade 10A': false,
     'Grade 10B': false,
@@ -34,9 +34,8 @@ class _LessonCreationState extends State<LessonCreation> {
           ElevatedButton(
             onPressed: _canSave() ? () {} : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _canSave()
-                  ? const Color(0xFF667EEA)
-                  : Colors.grey,
+              backgroundColor:
+                  _canSave() ? const Color(0xFF667EEA) : Colors.grey,
               foregroundColor: Colors.white,
             ),
             child: const Text('Save'),
@@ -62,7 +61,7 @@ class _LessonCreationState extends State<LessonCreation> {
               controller: _titleController,
               decoration: InputDecoration(
                 hintText: 'Mathematics: Algebra',
-                hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
+                hintStyle: TextStyle(color: _getHintColor()),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: _getBorderColor()),
@@ -110,13 +109,13 @@ class _LessonCreationState extends State<LessonCreation> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (_isRecording) ...[
-                    Icon(
+                    const Icon(
                       Icons.radio_button_checked,
                       size: 60,
                       color: Colors.red,
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    const Text(
                       '● RECORDING...',
                       style: TextStyle(
                         fontSize: 16,
@@ -127,13 +126,13 @@ class _LessonCreationState extends State<LessonCreation> {
                     const SizedBox(height: 4),
                     Text(
                       '🕐 ${_formatDuration(_recordingTime)}',
-                      style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                      style: TextStyle(color: _getLightTextColor()),
                     ),
                   ] else ...[
                     Icon(
                       Icons.videocam,
                       size: 60,
-                      color: Colors.white.withOpacity(0.7),
+                      color: _getLightTextColor(),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -141,7 +140,7 @@ class _LessonCreationState extends State<LessonCreation> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white.withOpacity(0.7),
+                        color: _getLightTextColor(),
                       ),
                     ),
                   ],
@@ -201,7 +200,7 @@ class _LessonCreationState extends State<LessonCreation> {
                     });
                   },
                   backgroundColor: _getCardColor(),
-                  selectedColor: const Color(0xFF667EEA).withOpacity(0.2),
+                  selectedColor: _getSelectedChipColor(),
                   checkmarkColor: const Color(0xFF667EEA),
                   labelStyle: TextStyle(
                     color: _selectedGrades[grade]!
@@ -337,6 +336,24 @@ class _LessonCreationState extends State<LessonCreation> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
+  }
+
+  // New method to replace .withAlpha((0.5 * 255).round())
+  Color _getHintColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF808080) // Equivalent to white.withOpacity(0.5)
+        : const Color(
+            0xFF888888); // Equivalent to Color(0xFF2D3748).withOpacity(0.5)
+  }
+
+  // New method to replace Colors.white.withAlpha((0.7 * 255).round())
+  Color _getLightTextColor() {
+    return const Color(0xFFB3B3B3); // Equivalent to white.withOpacity(0.7)
+  }
+
+  // New method to replace Color(0xFF667EEA).withAlpha(51)
+  Color _getSelectedChipColor() {
+    return const Color(0x33667EEA); // 0.2 opacity = 51 alpha = 0x33
   }
 
   @override

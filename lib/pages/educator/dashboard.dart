@@ -60,7 +60,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
             children: [
               CircleAvatar(
                 radius: 25,
-                backgroundColor: const Color(0xFF667EEA).withOpacity(0.1),
+                backgroundColor: const Color(0xFF667EEA).withAlpha(26),
                 child: const Icon(Icons.person, color: Color(0xFF667EEA)),
               ),
               const SizedBox(width: 12),
@@ -80,7 +80,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                       'Mathematics Teacher • Grade 10-12',
                       style: TextStyle(
                         fontSize: 14,
-                        color: _getTextColor().withOpacity(0.7),
+                        color: _getTextColor().withAlpha((0.7 * 255).round()),
                       ),
                     ),
                   ],
@@ -189,7 +189,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: _getTextColor().withOpacity(0.6),
+              color: _getTextColor().withAlpha((0.6 * 255).round()),
             ),
             textAlign: TextAlign.center,
           ),
@@ -230,7 +230,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: _getTextColor().withOpacity(0.4),
+              color: _getTextColor().withAlpha((0.4 * 255).round()),
               size: 16,
             ),
           ],
@@ -271,7 +271,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                   time,
                   style: TextStyle(
                     fontSize: 12,
-                    color: _getTextColor().withOpacity(0.5),
+                    color: _getTextColor().withAlpha((0.5 * 255).round()),
                   ),
                 ),
               ],
@@ -290,7 +290,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           Icon(
             Icons.video_library,
             size: 64,
-            color: _getTextColor().withOpacity(0.3),
+            color: _getTextColor().withAlpha((0.3 * 255).round()),
           ),
           const SizedBox(height: 16),
           Text(
@@ -304,7 +304,8 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           const SizedBox(height: 8),
           Text(
             'Manage your lessons and teaching materials',
-            style: TextStyle(color: _getTextColor().withOpacity(0.6)),
+            style: TextStyle(
+                color: _getTextColor().withAlpha((0.6 * 255).round())),
           ),
         ],
       ),
@@ -319,7 +320,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           Icon(
             Icons.live_tv,
             size: 64,
-            color: _getTextColor().withOpacity(0.3),
+            color: _getTextColor().withAlpha((0.3 * 255).round()),
           ),
           const SizedBox(height: 16),
           Text(
@@ -333,7 +334,8 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           const SizedBox(height: 8),
           Text(
             'Schedule and host live teaching sessions',
-            style: TextStyle(color: _getTextColor().withOpacity(0.6)),
+            style: TextStyle(
+                color: _getTextColor().withAlpha((0.6 * 255).round())),
           ),
         ],
       ),
@@ -345,7 +347,8 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.person, size: 64, color: _getTextColor().withOpacity(0.3)),
+          Icon(Icons.person,
+              size: 64, color: _getTextColor().withAlpha((0.3 * 255).round())),
           const SizedBox(height: 16),
           Text(
             'Educator Profile',
@@ -358,7 +361,8 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           const SizedBox(height: 8),
           Text(
             'Manage your account and settings',
-            style: TextStyle(color: _getTextColor().withOpacity(0.6)),
+            style: TextStyle(
+                color: _getTextColor().withAlpha((0.6 * 255).round())),
           ),
         ],
       ),
@@ -372,7 +376,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
       type: BottomNavigationBarType.fixed,
       backgroundColor: _getCardColor(),
       selectedItemColor: const Color(0xFF667EEA),
-      unselectedItemColor: _getTextColor().withOpacity(0.5),
+      unselectedItemColor: _getTextColor().withAlpha((0.5 * 255).round()),
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.dashboard),

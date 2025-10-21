@@ -60,7 +60,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
             children: [
               CircleAvatar(
                 radius: 25,
-                backgroundColor: const Color(0xFF4CAF50).withOpacity(0.1),
+                backgroundColor: const Color(0xFF4CAF50)
+                    .withAlpha(26), // 0.1 opacity = 26 alpha
                 child: const Icon(Icons.person, color: Color(0xFF4CAF50)),
               ),
               const SizedBox(width: 12),
@@ -80,7 +81,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       'Grade 10 • Progress: 85% Complete',
                       style: TextStyle(
                         fontSize: 14,
-                        color: _getTextColor().withOpacity(0.7),
+                        color: _getSecondaryTextColor(),
                       ),
                     ),
                   ],
@@ -112,12 +113,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         color: _getTextColor(),
                       ),
                     ),
-                    Text(
+                    const Text(
                       '85%',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF4CAF50),
+                        color: Color(0xFF4CAF50),
                       ),
                     ),
                   ],
@@ -219,7 +220,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withAlpha(26), // 0.1 opacity = 26 alpha
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -244,7 +245,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         due,
                         style: TextStyle(
                           fontSize: 14,
-                          color: _getTextColor().withOpacity(0.6),
+                          color: _getSecondaryTextColor(),
                         ),
                       ),
                     ],
@@ -260,7 +261,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   duration,
                   style: TextStyle(
                     fontSize: 14,
-                    color: _getTextColor().withOpacity(0.7),
+                    color: _getTertiaryTextColor(),
                   ),
                 ),
                 Container(
@@ -310,7 +311,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           ),
           Icon(
             Icons.arrow_forward_ios,
-            color: _getTextColor().withOpacity(0.4),
+            color: _getQuaternaryTextColor(),
             size: 16,
           ),
         ],
@@ -326,7 +327,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           Icon(
             Icons.video_camera_front,
             size: 64,
-            color: _getTextColor().withOpacity(0.3),
+            color: _getTertiaryTextColor(),
           ),
           const SizedBox(height: 16),
           Text(
@@ -340,7 +341,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           const SizedBox(height: 8),
           Text(
             'Join scheduled live sessions with educators',
-            style: TextStyle(color: _getTextColor().withOpacity(0.6)),
+            style: TextStyle(color: _getSecondaryTextColor()),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -365,7 +366,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           Icon(
             Icons.assignment,
             size: 64,
-            color: _getTextColor().withOpacity(0.3),
+            color: _getTertiaryTextColor(),
           ),
           const SizedBox(height: 16),
           Text(
@@ -379,7 +380,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           const SizedBox(height: 8),
           Text(
             'View and submit your assignments',
-            style: TextStyle(color: _getTextColor().withOpacity(0.6)),
+            style: TextStyle(color: _getSecondaryTextColor()),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -400,7 +401,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.person, size: 64, color: _getTextColor().withOpacity(0.3)),
+          Icon(
+            Icons.person,
+            size: 64,
+            color: _getTertiaryTextColor(),
+          ),
           const SizedBox(height: 16),
           Text(
             'Student Profile',
@@ -413,7 +418,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           const SizedBox(height: 8),
           Text(
             'Manage your account and settings',
-            style: TextStyle(color: _getTextColor().withOpacity(0.6)),
+            style: TextStyle(color: _getSecondaryTextColor()),
           ),
         ],
       ),
@@ -427,7 +432,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       type: BottomNavigationBarType.fixed,
       backgroundColor: _getCardColor(),
       selectedItemColor: const Color(0xFF4CAF50),
-      unselectedItemColor: _getTextColor().withOpacity(0.5),
+      unselectedItemColor: _getQuaternaryTextColor(),
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
         BottomNavigationBarItem(
@@ -465,5 +470,29 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
+  }
+
+  // Method for secondary text
+  Color _getSecondaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFB3B3B3) // Equivalent to white.withOpacity(0.7)
+        : const Color(
+            0xFF666666); // Equivalent to Color(0xFF2D3748).withOpacity(0.7)
+  }
+
+  // Method for tertiary text
+  Color _getTertiaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF999999) // Equivalent to white.withOpacity(0.6)
+        : const Color(
+            0xFF888888); // Equivalent to Color(0xFF2D3748).withOpacity(0.6)
+  }
+
+  // Method for quaternary text
+  Color _getQuaternaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF808080) // Equivalent to white.withOpacity(0.5)
+        : const Color(
+            0xFF999999); // Equivalent to Color(0xFF2D3748).withOpacity(0.5)
   }
 }

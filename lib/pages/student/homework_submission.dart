@@ -10,7 +10,7 @@ class HomeworkSubmission extends StatefulWidget {
 class _HomeworkSubmissionState extends State<HomeworkSubmission> {
   bool _reviewedVideo = false;
   bool _meetsRequirements = false;
-  Duration _recordingTime = const Duration(minutes: 3, seconds: 45);
+  final Duration _recordingTime = const Duration(minutes: 3, seconds: 45);
 
   @override
   Widget build(BuildContext context) {
@@ -31,9 +31,8 @@ class _HomeworkSubmissionState extends State<HomeworkSubmission> {
           ElevatedButton(
             onPressed: _canSubmit() ? () {} : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _canSubmit()
-                  ? const Color(0xFF4CAF50)
-                  : Colors.grey,
+              backgroundColor:
+                  _canSubmit() ? const Color(0xFF4CAF50) : Colors.grey,
               foregroundColor: Colors.white,
             ),
             child: const Text('Submit'),
@@ -84,11 +83,12 @@ class _HomeworkSubmissionState extends State<HomeworkSubmission> {
                   Container(
                     width: 80,
                     height: 80,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: Colors.red,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.videocam, color: Colors.white, size: 40),
+                    child: const Icon(Icons.videocam,
+                        color: Colors.white, size: 40),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -96,13 +96,13 @@ class _HomeworkSubmissionState extends State<HomeworkSubmission> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.7),
+                      color: _getLightTextColor(),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Max: 10:00 • Current: ${_formatDuration(_recordingTime)}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                    style: TextStyle(color: _getLightTextColor()),
                   ),
                 ],
               ),
@@ -251,5 +251,10 @@ class _HomeworkSubmissionState extends State<HomeworkSubmission> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
+  }
+
+  // New method to replace Colors.white.withOpacity(0.7)
+  Color _getLightTextColor() {
+    return const Color(0xFFB3B3B3); // Equivalent to white.withOpacity(0.7)
   }
 }

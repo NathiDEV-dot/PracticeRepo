@@ -53,7 +53,7 @@ class _VideoEditorState extends State<VideoEditor> {
                     width: 80,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: _getVideoPreviewButtonColor(),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Icon(
@@ -68,7 +68,7 @@ class _VideoEditorState extends State<VideoEditor> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.7),
+                      color: _getLightTextColor(),
                     ),
                   ),
                 ],
@@ -120,14 +120,14 @@ class _VideoEditorState extends State<VideoEditor> {
                         '0:00',
                         style: TextStyle(
                           fontSize: 12,
-                          color: _getTextColor().withOpacity(0.6),
+                          color: _getSecondaryTextColor(),
                         ),
                       ),
                       Text(
                         '3:45',
                         style: TextStyle(
                           fontSize: 12,
-                          color: _getTextColor().withOpacity(0.6),
+                          color: _getSecondaryTextColor(),
                         ),
                       ),
                     ],
@@ -249,5 +249,23 @@ class _VideoEditorState extends State<VideoEditor> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
+  }
+
+  // New method to replace Colors.white.withOpacity(0.2)
+  Color _getVideoPreviewButtonColor() {
+    return const Color(0xFF333333); // Equivalent to white.withOpacity(0.2)
+  }
+
+  // New method to replace Colors.white.withOpacity(0.7)
+  Color _getLightTextColor() {
+    return const Color(0xFFB3B3B3); // Equivalent to white.withOpacity(0.7)
+  }
+
+  // New method to replace .withOpacity(0.6) for secondary text
+  Color _getSecondaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF999999) // Equivalent to white.withOpacity(0.6)
+        : const Color(
+            0xFF888888); // Equivalent to Color(0xFF2D3748).withOpacity(0.6)
   }
 }

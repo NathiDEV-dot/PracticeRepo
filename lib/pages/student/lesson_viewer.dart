@@ -50,7 +50,7 @@ class _LessonViewerState extends State<LessonViewer> {
                   Icon(
                     Icons.play_circle_filled,
                     size: 60,
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withAlpha((0.7 * 255).round()),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -58,7 +58,7 @@ class _LessonViewerState extends State<LessonViewer> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withAlpha((0.7 * 255).round()),
                     ),
                   ),
                 ],

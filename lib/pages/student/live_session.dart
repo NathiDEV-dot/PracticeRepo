@@ -62,17 +62,17 @@ class _LiveSessionState extends State<LiveSession> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircleAvatar(
+                          const CircleAvatar(
                             radius: 40,
-                            backgroundColor: Colors.grey[600],
-                            child: const Icon(
+                            backgroundColor: Colors.grey,
+                            child: Icon(
                               Icons.person,
                               size: 40,
                               color: Colors.white,
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Text(
+                          const Text(
                             'MR. JOHNSON',
                             style: TextStyle(
                               fontSize: 16,
@@ -83,7 +83,8 @@ class _LiveSessionState extends State<LiveSession> {
                           Text(
                             'Host',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color:
+                                  Colors.white.withAlpha((0.7 * 255).round()),
                             ),
                           ),
                         ],
@@ -101,17 +102,17 @@ class _LiveSessionState extends State<LiveSession> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircleAvatar(
+                          const CircleAvatar(
                             radius: 25,
-                            backgroundColor: Colors.grey[600],
-                            child: const Icon(
+                            backgroundColor: Colors.grey,
+                            child: Icon(
                               Icons.person,
                               size: 25,
                               color: Colors.white,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
+                          const Text(
                             'SARAH',
                             style: TextStyle(
                               fontSize: 12,
@@ -123,7 +124,8 @@ class _LiveSessionState extends State<LiveSession> {
                             'You',
                             style: TextStyle(
                               fontSize: 10,
-                              color: Colors.white.withOpacity(0.7),
+                              color:
+                                  Colors.white.withAlpha((0.7 * 255).round()),
                             ),
                           ),
                         ],
@@ -157,11 +159,11 @@ class _LiveSessionState extends State<LiveSession> {
                 const SizedBox(height: 8),
                 Expanded(
                   child: ListView(
-                    children: [
-                      _buildParticipantItem('Mr. Johnson (Host)'),
-                      _buildParticipantItem('Sarah (You)'),
-                      _buildParticipantItem('Mike'),
-                      _buildParticipantItem('Lisa'),
+                    children: const [
+                      _ParticipantItem('Mr. Johnson (Host)'),
+                      _ParticipantItem('Sarah (You)'),
+                      _ParticipantItem('Mike'),
+                      _ParticipantItem('Lisa'),
                     ],
                   ),
                 ),
@@ -240,24 +242,6 @@ class _LiveSessionState extends State<LiveSession> {
     );
   }
 
-  Widget _buildParticipantItem(String name) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          const Icon(Icons.circle, color: Colors.green, size: 8),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              name,
-              style: TextStyle(fontSize: 14, color: _getTextColor()),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildActionButton(String text, IconData icon) {
     return ElevatedButton.icon(
       onPressed: () {},
@@ -312,5 +296,34 @@ class _LiveSessionState extends State<LiveSession> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
+  }
+}
+
+class _ParticipantItem extends StatelessWidget {
+  const _ParticipantItem(this.name);
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : const Color(0xFF2D3748);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.circle, color: Colors.green, size: 8),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              name,
+              style: TextStyle(fontSize: 14, color: textColor),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

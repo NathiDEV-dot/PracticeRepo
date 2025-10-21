@@ -89,8 +89,12 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                 hintText: 'your.email@example.com',
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value!.isEmpty) return 'Please enter email address';
-                  if (!value.contains('@')) return 'Please enter a valid email';
+                  if (value!.isEmpty) {
+                    return 'Please enter email address';
+                  }
+                  if (!value.contains('@')) {
+                    return 'Please enter a valid email';
+                  }
                   return null;
                 },
               ),
@@ -130,9 +134,12 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                 hintText: 'Enter age',
                 keyboardType: TextInputType.number,
                 validator: (value) {
-                  if (value!.isEmpty) return 'Please enter child\'s age';
-                  if (int.tryParse(value) == null)
+                  if (value!.isEmpty) {
+                    return 'Please enter child\'s age';
+                  }
+                  if (int.tryParse(value) == null) {
                     return 'Please enter a valid age';
+                  }
                   return null;
                 },
               ),
@@ -182,7 +189,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           'Create an account to support your child\'s South African Sign Language learning',
           style: TextStyle(
             fontSize: 16,
-            color: _getTextColor().withOpacity(0.7),
+            color: _getTextColor().withAlpha((0.7 * 255).round()),
           ),
         ),
       ],
@@ -214,7 +221,8 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           validator: validator,
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
+            hintStyle: TextStyle(
+                color: _getTextColor().withAlpha((0.5 * 255).round())),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: _getBorderColor()),
@@ -254,7 +262,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _childGrade,
+          initialValue: _childGrade,
           onChanged: (String? newValue) {
             setState(() {
               _childGrade = newValue;
@@ -264,7 +272,8 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
               value == null ? 'Please select child\'s grade' : null,
           decoration: InputDecoration(
             hintText: 'Select grade',
-            hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
+            hintStyle: TextStyle(
+                color: _getTextColor().withAlpha((0.5 * 255).round())),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: _getBorderColor()),
@@ -334,7 +343,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle, color: const Color(0xFFFF9800), size: 60),
+            const Icon(Icons.check_circle, color: Color(0xFFFF9800), size: 60),
             const SizedBox(height: 20),
             Text(
               'Account Created!',
@@ -350,7 +359,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: _getTextColor().withOpacity(0.7),
+                color: _getTextColor().withAlpha((0.7 * 255).round()),
               ),
             ),
             const SizedBox(height: 24),

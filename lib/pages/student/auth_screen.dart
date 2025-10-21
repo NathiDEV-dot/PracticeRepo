@@ -113,7 +113,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
           'Create your student account to start learning South African Sign Language',
           style: TextStyle(
             fontSize: 16,
-            color: _getTextColor().withOpacity(0.7),
+            color: _getSecondaryTextColor(),
           ),
         ),
       ],
@@ -143,7 +143,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
           validator: validator,
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
+            hintStyle: TextStyle(color: _getHintColor()),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: _getBorderColor()),
@@ -183,7 +183,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _selectedGrade,
+          initialValue: _selectedGrade,
           onChanged: (String? newValue) {
             setState(() {
               _selectedGrade = newValue;
@@ -193,7 +193,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
               value == null ? 'Please select your grade' : null,
           decoration: InputDecoration(
             hintText: 'Select your grade',
-            hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
+            hintStyle: TextStyle(color: _getHintColor()),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: _getBorderColor()),
@@ -263,7 +263,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle, color: const Color(0xFF4CAF50), size: 60),
+            const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 60),
             const SizedBox(height: 20),
             Text(
               'Welcome to SignSync!',
@@ -279,7 +279,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: _getTextColor().withOpacity(0.7),
+                color: _getSecondaryTextColor(),
               ),
             ),
             const SizedBox(height: 24),
@@ -329,6 +329,22 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
+  }
+
+  // New method to replace .withOpacity(0.7) for secondary text
+  Color _getSecondaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFB3B3B3) // Equivalent to white.withOpacity(0.7)
+        : const Color(
+            0xFF666666); // Equivalent to Color(0xFF2D3748).withOpacity(0.7)
+  }
+
+  // New method to replace .withOpacity(0.5) for hint text
+  Color _getHintColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF808080) // Equivalent to white.withOpacity(0.5)
+        : const Color(
+            0xFF888888); // Equivalent to Color(0xFF2D3748).withOpacity(0.5)
   }
 
   @override

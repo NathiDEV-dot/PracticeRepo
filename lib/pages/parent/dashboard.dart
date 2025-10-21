@@ -61,7 +61,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
               ),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Column(
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -72,12 +72,12 @@ class _ParentDashboardState extends State<ParentDashboard> {
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   'Monitor your child\'s SASL learning progress',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Color(0xFFF5F5F5),
                   ),
                 ),
               ],
@@ -166,7 +166,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFFFF9800).withOpacity(0.1),
+              color: const Color(0xFFFF9800)
+                  .withAlpha(26), // 0.1 opacity = 26 alpha
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: const Color(0xFFFF9800)),
@@ -188,7 +189,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                   grade,
                   style: TextStyle(
                     fontSize: 14,
-                    color: _getTextColor().withOpacity(0.6),
+                    color: _getSecondaryTextColor(),
                   ),
                 ),
               ],
@@ -201,15 +202,15 @@ class _ParentDashboardState extends State<ParentDashboard> {
                 'Progress',
                 style: TextStyle(
                   fontSize: 12,
-                  color: _getTextColor().withOpacity(0.6),
+                  color: _getSecondaryTextColor(),
                 ),
               ),
               Text(
                 progress,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFFFF9800),
+                  color: Color(0xFFFF9800),
                 ),
               ),
             ],
@@ -249,7 +250,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
             title,
             style: TextStyle(
               fontSize: 12,
-              color: _getTextColor().withOpacity(0.6),
+              color: _getSecondaryTextColor(),
             ),
           ),
         ],
@@ -279,7 +280,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       type: BottomNavigationBarType.fixed,
       backgroundColor: _getCardColor(),
       selectedItemColor: const Color(0xFFFF9800),
-      unselectedItemColor: _getTextColor().withOpacity(0.5),
+      unselectedItemColor: _getQuaternaryTextColor(),
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Overview'),
         BottomNavigationBarItem(
@@ -313,5 +314,21 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
+  }
+
+  // Method for secondary text
+  Color _getSecondaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF999999) // Equivalent to white.withOpacity(0.6)
+        : const Color(
+            0xFF888888); // Equivalent to Color(0xFF2D3748).withOpacity(0.6)
+  }
+
+  // Method for quaternary text
+  Color _getQuaternaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF808080) // Equivalent to white.withOpacity(0.5)
+        : const Color(
+            0xFF999999); // Equivalent to Color(0xFF2D3748).withOpacity(0.5)
   }
 }

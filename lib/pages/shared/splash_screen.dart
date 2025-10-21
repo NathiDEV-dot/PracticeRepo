@@ -39,11 +39,11 @@ class _SplashScreenState extends State<SplashScreen>
 
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _controller,
-            curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
-          ),
-        );
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
+      ),
+    );
 
     _rotationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
@@ -56,7 +56,9 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Navigate to welcome screen after splash screen
     Future.delayed(const Duration(seconds: 3), () {
-      Navigator.pushReplacementNamed(context, '/welcome');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/welcome');
+      }
     });
   }
 
@@ -94,7 +96,7 @@ class _SplashScreenState extends State<SplashScreen>
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF667EEA).withOpacity(0.4),
+                            color: const Color(0xFF667EEA).withAlpha(102),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -107,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen>
                             child: Icon(
                               Icons.handshake,
                               size: 60,
-                              color: Colors.white.withOpacity(0.9),
+                              color: _getLightIconColor(),
                             ),
                           ),
                           // Animated ring
@@ -137,7 +139,7 @@ class _SplashScreenState extends State<SplashScreen>
                             shadows: [
                               Shadow(
                                 blurRadius: 10,
-                                color: Colors.black.withOpacity(0.1),
+                                color: _getShadowColor(),
                                 offset: const Offset(2, 2),
                               ),
                             ],
@@ -149,7 +151,7 @@ class _SplashScreenState extends State<SplashScreen>
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w300,
-                            color: _getTextColor().withOpacity(0.8),
+                            color: _getSecondaryTextColor(),
                             letterSpacing: 4,
                           ),
                         ),
@@ -169,7 +171,7 @@ class _SplashScreenState extends State<SplashScreen>
                         width: 100,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: _getTextColor().withOpacity(0.3),
+                          color: _getProgressBackgroundColor(),
                           borderRadius: BorderRadius.circular(2),
                         ),
                         child: Stack(
@@ -202,7 +204,7 @@ class _SplashScreenState extends State<SplashScreen>
                         'South African Sign Language Learning',
                         style: TextStyle(
                           fontSize: 14,
-                          color: _getTextColor().withOpacity(0.7),
+                          color: _getTertiaryTextColor(),
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -231,7 +233,7 @@ class _SplashScreenState extends State<SplashScreen>
             return CustomPaint(
               painter: _RingPainter(
                 progress: _controller.value,
-                color: Colors.white.withOpacity(0.3),
+                color: _getRingColor(),
               ),
             );
           },
@@ -250,6 +252,45 @@ class _SplashScreenState extends State<SplashScreen>
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.white
         : const Color(0xFF2D3748);
+  }
+
+  // New method to replace Colors.white.withOpacity(0.9)
+  Color _getLightIconColor() {
+    return const Color(0xFFE6E6E6); // Equivalent to white.withOpacity(0.9)
+  }
+
+  // New method to replace Colors.black.withOpacity(0.1)
+  Color _getShadowColor() {
+    return const Color(0x1A000000); // Equivalent to black.withOpacity(0.1)
+  }
+
+  // New method to replace .withOpacity(0.8) for secondary text
+  Color _getSecondaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFCCCCCC) // Equivalent to white.withOpacity(0.8)
+        : const Color(
+            0xFF666666); // Equivalent to Color(0xFF2D3748).withOpacity(0.8)
+  }
+
+  // New method to replace .withOpacity(0.7) for tertiary text
+  Color _getTertiaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFB3B3B3) // Equivalent to white.withOpacity(0.7)
+        : const Color(
+            0xFF777777); // Equivalent to Color(0xFF2D3748).withOpacity(0.7)
+  }
+
+  // New method to replace .withOpacity(0.3) for progress background
+  Color _getProgressBackgroundColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF4D4D4D) // Equivalent to white.withOpacity(0.3)
+        : const Color(
+            0xFFD1D1D1); // Equivalent to Color(0xFF2D3748).withOpacity(0.3)
+  }
+
+  // New method to replace Colors.white.withOpacity(0.3) for ring
+  Color _getRingColor() {
+    return const Color(0xFF4D4D4D); // Equivalent to white.withOpacity(0.3)
   }
 }
 
