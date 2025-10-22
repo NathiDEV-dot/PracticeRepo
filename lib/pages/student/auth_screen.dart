@@ -26,51 +26,98 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
     'Grade 9',
     'Grade 10',
     'Grade 11',
-    'Grade 12',
+    'Grade 12'
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _getBackgroundColor(),
-      appBar: AppBar(
-        title: const Text('Student Registration'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: _getTextColor()),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
+      backgroundColor: const Color(0xFF4CAF50),
+      body: SafeArea(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF4CAF50), Color(0xFF45a049)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(),
-              const SizedBox(height: 32),
-              _buildTextField(
-                controller: _nameController,
-                label: 'First Name',
-                hintText: 'Enter your first name',
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your first name' : null,
+              // Custom App Bar
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Student Registration',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: _surnameController,
-                label: 'Last Name',
-                hintText: 'Enter your last name',
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your last name' : null,
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _getCardColor(),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.all(24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          _buildHeader(),
+                          const SizedBox(height: 32),
+                          _buildTextFieldWithIcon(
+                            controller: _nameController,
+                            label: 'First Name',
+                            hintText: 'Enter your first name',
+                            icon: Icons.person,
+                            validator: (value) => value!.isEmpty
+                                ? 'Please enter your first name'
+                                : null,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildTextFieldWithIcon(
+                            controller: _surnameController,
+                            label: 'Last Name',
+                            hintText: 'Enter your last name',
+                            icon: Icons.person_outline,
+                            validator: (value) => value!.isEmpty
+                                ? 'Please enter your last name'
+                                : null,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildGradeDropdown(),
+                          const SizedBox(height: 40),
+                          _buildSubmitButton(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 20),
-              _buildGradeDropdown(),
-              const SizedBox(height: 40),
-              _buildSubmitButton(),
             ],
           ),
         ),
@@ -80,24 +127,27 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
 
   Widget _buildHeader() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 60,
-          height: 60,
+          width: 80,
+          height: 80,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF4CAF50), Color(0xFF45a049)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF4CAF50).withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          child: const Icon(
-            Icons.person_rounded,
-            color: Colors.white,
-            size: 30,
-          ),
+          child:
+              const Icon(Icons.person_rounded, color: Colors.white, size: 40),
         ),
         const SizedBox(height: 20),
         Text(
@@ -108,22 +158,32 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
             color: _getTextColor(),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
-          'Create your student account to start learning South African Sign Language',
+          'Create your student account to start learning',
           style: TextStyle(
             fontSize: 16,
-            color: _getSecondaryTextColor(),
+            color: _getTextColor().withOpacity(0.7),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'South African Sign Language',
+          style: TextStyle(
+            fontSize: 16,
+            color: _getTextColor().withOpacity(0.7),
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildTextFieldWithIcon({
     required TextEditingController controller,
     required String label,
     required String hintText,
+    required IconData icon,
     required String? Function(String?) validator,
   }) {
     return Column(
@@ -138,32 +198,44 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: TextStyle(color: _getHintColor()),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _getBorderColor()),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _getBorderColor()),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 2),
-            ),
-            filled: true,
-            fillColor: _getCardColor(),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          style: TextStyle(color: _getTextColor()),
+          child: TextFormField(
+            controller: controller,
+            validator: validator,
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
+              prefixIcon: Icon(icon, color: _getTextColor().withOpacity(0.5)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: Color(0xFF4CAF50), width: 2),
+              ),
+              filled: true,
+              fillColor: _getBackgroundColor(),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+            ),
+            style: TextStyle(color: _getTextColor(), fontSize: 16),
+          ),
         ),
       ],
     );
@@ -182,53 +254,78 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _selectedGrade,
-          onChanged: (String? newValue) {
-            setState(() {
-              _selectedGrade = newValue;
-            });
-          },
-          validator: (value) =>
-              value == null ? 'Please select your grade' : null,
-          decoration: InputDecoration(
-            hintText: 'Select your grade',
-            hintStyle: TextStyle(color: _getHintColor()),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _getBorderColor()),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _getBorderColor()),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 2),
-            ),
-            filled: true,
-            fillColor: _getCardColor(),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          dropdownColor: _getCardColor(),
-          style: TextStyle(color: _getTextColor()),
-          items: _grades.map((String grade) {
-            return DropdownMenuItem<String>(
-              value: grade,
-              child: Text(grade, style: TextStyle(color: _getTextColor())),
-            );
-          }).toList(),
+          child: DropdownButtonFormField<String>(
+            value: _selectedGrade,
+            onChanged: (String? newValue) {
+              setState(() {
+                _selectedGrade = newValue;
+              });
+            },
+            validator: (value) =>
+                value == null ? 'Please select your grade' : null,
+            decoration: InputDecoration(
+              hintText: 'Select your grade',
+              hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
+              prefixIcon:
+                  Icon(Icons.school, color: _getTextColor().withOpacity(0.5)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: Color(0xFF4CAF50), width: 2),
+              ),
+              filled: true,
+              fillColor: _getBackgroundColor(),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+            ),
+            dropdownColor: _getCardColor(),
+            style: TextStyle(color: _getTextColor(), fontSize: 16),
+            icon: Icon(Icons.arrow_drop_down,
+                color: _getTextColor().withOpacity(0.5)),
+            items: _grades.map((String grade) {
+              return DropdownMenuItem<String>(
+                value: grade,
+                child: Text(grade, style: TextStyle(color: _getTextColor())),
+              );
+            }).toList(),
+          ),
         ),
       ],
     );
   }
 
   Widget _buildSubmitButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4CAF50).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ElevatedButton(
         onPressed: _submitForm,
         style: ElevatedButton.styleFrom(
@@ -236,13 +333,16 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
           elevation: 0,
         ),
         child: const Text(
           'Create Student Account',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -250,7 +350,10 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      showDialog(context: context, builder: (context) => _buildSuccessDialog());
+      showDialog(
+        context: context,
+        builder: (context) => _buildSuccessDialog(),
+      );
     }
   }
 
@@ -263,7 +366,16 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 60),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle,
+                  color: Color(0xFF4CAF50), size: 60),
+            ),
             const SizedBox(height: 20),
             Text(
               'Welcome to SignSync!',
@@ -279,12 +391,22 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: _getSecondaryTextColor(),
+                color: _getTextColor().withOpacity(0.7),
               ),
             ),
             const SizedBox(height: 24),
-            SizedBox(
+            Container(
               width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4CAF50).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pop();
@@ -309,8 +431,8 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
 
   Color _getBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF0F0F1E)
-        : const Color(0xFFF8FAFF);
+        ? const Color(0xFF1E1E2E)
+        : const Color(0xFFF7FAFC);
   }
 
   Color _getTextColor() {
@@ -323,28 +445,6 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF1E1E2E)
         : Colors.white;
-  }
-
-  Color _getBorderColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF333344)
-        : const Color(0xFFE2E8F0);
-  }
-
-  // New method to replace .withOpacity(0.7) for secondary text
-  Color _getSecondaryTextColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFFB3B3B3) // Equivalent to white.withOpacity(0.7)
-        : const Color(
-            0xFF666666); // Equivalent to Color(0xFF2D3748).withOpacity(0.7)
-  }
-
-  // New method to replace .withOpacity(0.5) for hint text
-  Color _getHintColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF808080) // Equivalent to white.withOpacity(0.5)
-        : const Color(
-            0xFF888888); // Equivalent to Color(0xFF2D3748).withOpacity(0.5)
   }
 
   @override
