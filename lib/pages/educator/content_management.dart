@@ -25,7 +25,7 @@ class _ContentManagementState extends State<ContentManagement> {
       'views': 125,
       'students': 25,
       'icon': Icons.play_arrow,
-      'color': Color(0xFF3B82F6),
+      'color': const Color(0xFF3B82F6),
     },
     {
       'title': 'Geometry Concepts',
@@ -33,7 +33,7 @@ class _ContentManagementState extends State<ContentManagement> {
       'views': 98,
       'students': 18,
       'icon': Icons.play_arrow,
-      'color': Color(0xFF8B5CF6),
+      'color': const Color(0xFF8B5CF6),
     },
     {
       'title': 'Science Lab Safety',
@@ -41,7 +41,7 @@ class _ContentManagementState extends State<ContentManagement> {
       'views': 156,
       'students': 32,
       'icon': Icons.play_arrow,
-      'color': Color(0xFF10B981),
+      'color': const Color(0xFF10B981),
     },
     {
       'title': 'Chemical Reactions',
@@ -49,7 +49,7 @@ class _ContentManagementState extends State<ContentManagement> {
       'views': 87,
       'students': 15,
       'icon': Icons.play_arrow,
-      'color': Color(0xFFF59E0B),
+      'color': const Color(0xFFF59E0B),
     },
     {
       'title': 'World History Overview',
@@ -57,7 +57,7 @@ class _ContentManagementState extends State<ContentManagement> {
       'views': 203,
       'students': 41,
       'icon': Icons.play_arrow,
-      'color': Color(0xFFEF4444),
+      'color': const Color(0xFFEF4444),
     },
     {
       'title': 'Physics Fundamentals',
@@ -65,7 +65,7 @@ class _ContentManagementState extends State<ContentManagement> {
       'views': 134,
       'students': 28,
       'icon': Icons.play_arrow,
-      'color': Color(0xFF06B6D4),
+      'color': const Color(0xFF06B6D4),
     },
   ];
 
@@ -108,7 +108,7 @@ class _ContentManagementState extends State<ContentManagement> {
 
               // Content Grid
               _buildContentSection(),
-              const SizedBox(height: 16), // Added bottom padding
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -122,10 +122,10 @@ class _ContentManagementState extends State<ContentManagement> {
       decoration: BoxDecoration(
         color: _getCardColor(),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _getBorderColor().withOpacity(0.5)),
-        boxShadow: [
+        border: Border.all(color: _getBorderColor()),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Color(0x1A000000),
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -138,22 +138,22 @@ class _ContentManagementState extends State<ContentManagement> {
             icon: Icons.video_library_rounded,
             value: '45',
             label: 'Videos',
-            iconColor: Color(0xFF3B82F6),
-            bgColor: Color(0xFFDBEAFE),
+            iconColor: const Color(0xFF3B82F6),
+            bgColor: const Color(0xFFDBEAFE),
           ),
           _buildStatCard(
             icon: Icons.people_rounded,
             value: '127',
             label: 'Students',
-            iconColor: Color(0xFF16A34A),
-            bgColor: Color(0xFFDCFCE7),
+            iconColor: const Color(0xFF16A34A),
+            bgColor: const Color(0xFFDCFCE7),
           ),
           _buildStatCard(
             icon: Icons.remove_red_eye_rounded,
             value: '2.4K',
             label: 'Total Views',
-            iconColor: Color(0xFFD97706),
-            bgColor: Color(0xFFFEF3C7),
+            iconColor: const Color(0xFFD97706),
+            bgColor: const Color(0xFFFEF3C7),
           ),
         ],
       ),
@@ -175,9 +175,9 @@ class _ContentManagementState extends State<ContentManagement> {
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Color(0x1A000000),
                 blurRadius: 6,
                 offset: Offset(0, 3),
               ),
@@ -198,7 +198,7 @@ class _ContentManagementState extends State<ContentManagement> {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: _getTextColor().withOpacity(0.6),
+            color: _getTextColorSecondary(),
           ),
         ),
       ],
@@ -210,10 +210,10 @@ class _ContentManagementState extends State<ContentManagement> {
       children: [
         Expanded(
           child: Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Color(0x14000000),
                   blurRadius: 12,
                   offset: Offset(0, 4),
                 ),
@@ -222,9 +222,9 @@ class _ContentManagementState extends State<ContentManagement> {
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Search content...',
-                hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
-                prefixIcon: Icon(Icons.search_rounded,
-                    color: _getTextColor().withOpacity(0.5)),
+                hintStyle: TextStyle(color: _getTextColorSecondary()),
+                prefixIcon:
+                    Icon(Icons.search_rounded, color: _getTextColorSecondary()),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -248,9 +248,9 @@ class _ContentManagementState extends State<ContentManagement> {
           decoration: BoxDecoration(
             color: _getCardColor(),
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Color(0x14000000),
                 blurRadius: 12,
                 offset: Offset(0, 4),
               ),
@@ -287,7 +287,7 @@ class _ContentManagementState extends State<ContentManagement> {
             itemCount: _folders.length,
             itemBuilder: (context, index) {
               return Container(
-                margin: EdgeInsets.only(right: 8),
+                margin: const EdgeInsets.only(right: 8),
                 child: GestureDetector(
                   onTap: () {
                     setState(() {
@@ -304,14 +304,14 @@ class _ContentManagementState extends State<ContentManagement> {
                       borderRadius: BorderRadius.circular(25),
                       border: _selectedFolder == index
                           ? null
-                          : Border.all(
-                              color: _getBorderColor().withOpacity(0.8)),
+                          : Border.all(color: _getBorderColor()),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(
-                              _selectedFolder == index ? 0.2 : 0.05),
+                          color: _selectedFolder == index
+                              ? const Color(0x33000000)
+                              : const Color(0x0D000000),
                           blurRadius: 8,
-                          offset: Offset(0, 2),
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -356,7 +356,7 @@ class _ContentManagementState extends State<ContentManagement> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _getPrimaryColor().withOpacity(0.1),
+                  color: const Color(0x1A3B82F6),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -395,19 +395,18 @@ class _ContentManagementState extends State<ContentManagement> {
       decoration: BoxDecoration(
         color: _getCardColor(),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Color(0x1A000000),
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
         ],
-        border: Border.all(color: _getBorderColor().withOpacity(0.8)),
+        border: Border.all(color: _getBorderColor()),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with icon and title
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -421,13 +420,13 @@ class _ContentManagementState extends State<ContentManagement> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        (video['color'] as Color).withOpacity(0.2),
-                        (video['color'] as Color).withOpacity(0.1),
+                        _getLightColor(video['color'] as Color),
+                        _getLighterColor(video['color'] as Color),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: (video['color'] as Color).withOpacity(0.3),
+                      color: _getMediumColor(video['color'] as Color),
                       width: 1.5,
                     ),
                   ),
@@ -465,15 +464,14 @@ class _ContentManagementState extends State<ContentManagement> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.schedule_rounded,
-                                size: 12,
-                                color: _getTextColor().withOpacity(0.6)),
+                                size: 12, color: _getTextColorTertiary()),
                             const SizedBox(width: 4),
                             Text(
                               video['duration'],
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
-                                color: _getTextColor().withOpacity(0.7),
+                                color: _getTextColorTertiary(),
                               ),
                             ),
                           ],
@@ -485,14 +483,12 @@ class _ContentManagementState extends State<ContentManagement> {
               ],
             ),
           ),
-
-          // Stats section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _getBackgroundColor().withOpacity(0.5),
+                color: _getBackgroundColorLight(),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
@@ -500,7 +496,7 @@ class _ContentManagementState extends State<ContentManagement> {
                   Row(
                     children: [
                       Icon(Icons.remove_red_eye_rounded,
-                          size: 14, color: _getTextColor().withOpacity(0.7)),
+                          size: 14, color: _getTextColorTertiary()),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -508,7 +504,7 @@ class _ContentManagementState extends State<ContentManagement> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: _getTextColor().withOpacity(0.7),
+                            color: _getTextColorTertiary(),
                           ),
                         ),
                       ),
@@ -518,7 +514,7 @@ class _ContentManagementState extends State<ContentManagement> {
                   Row(
                     children: [
                       Icon(Icons.people_rounded,
-                          size: 14, color: _getTextColor().withOpacity(0.7)),
+                          size: 14, color: _getTextColorTertiary()),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -526,7 +522,7 @@ class _ContentManagementState extends State<ContentManagement> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: _getTextColor().withOpacity(0.7),
+                            color: _getTextColorTertiary(),
                           ),
                         ),
                       ),
@@ -536,15 +532,12 @@ class _ContentManagementState extends State<ContentManagement> {
               ),
             ),
           ),
-
           const Spacer(),
-
-          // Action buttons
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: _getBorderColor().withOpacity(0.5)),
+                top: BorderSide(color: _getBorderColorLight()),
               ),
             ),
             child: Row(
@@ -558,7 +551,7 @@ class _ContentManagementState extends State<ContentManagement> {
                 Container(
                   height: 20,
                   width: 1,
-                  color: _getBorderColor().withOpacity(0.5),
+                  color: _getBorderColorLight(),
                 ),
                 _buildActionButton(
                   icon: Icons.analytics_rounded,
@@ -620,6 +613,35 @@ class _ContentManagementState extends State<ContentManagement> {
     );
   }
 
+  // Color helper methods
+  Color _getLightColor(Color baseColor) {
+    return baseColor.withAlpha(51); // 20% opacity equivalent
+  }
+
+  Color _getLighterColor(Color baseColor) {
+    return baseColor.withAlpha(26); // 10% opacity equivalent
+  }
+
+  Color _getMediumColor(Color baseColor) {
+    return baseColor.withAlpha(77); // 30% opacity equivalent
+  }
+
+  Color _getTextColorSecondary() {
+    return _getTextColor().withAlpha(153); // 60% opacity equivalent
+  }
+
+  Color _getTextColorTertiary() {
+    return _getTextColor().withAlpha(128); // 50% opacity equivalent
+  }
+
+  Color _getBackgroundColorLight() {
+    return _getBackgroundColor().withAlpha(128); // 50% opacity equivalent
+  }
+
+  Color _getBorderColorLight() {
+    return _getBorderColor().withAlpha(128); // 50% opacity equivalent
+  }
+
   Color _getBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF0F0F1E)
@@ -646,11 +668,5 @@ class _ContentManagementState extends State<ContentManagement> {
 
   Color _getPrimaryColor() {
     return const Color(0xFF3B82F6);
-  }
-
-  Color _getButtonColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF2A2A3A)
-        : const Color(0xFFF1F5F9);
   }
 }
