@@ -30,10 +30,12 @@ class _LiveSessionState extends State<LiveSession> {
               // Header
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.2),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0d1a26), // Replaced black.withOpacity(0.2)
                   border: Border(
-                    bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    bottom: BorderSide(
+                        color: Color(
+                            0xFF2c3e50)), // Replaced white.withOpacity(0.1)
                   ),
                 ),
                 child: Row(
@@ -60,15 +62,16 @@ class _LiveSessionState extends State<LiveSession> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 15, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF64b5f6).withOpacity(0.2),
+                        color: const Color(
+                            0xFF1e3a5c), // Replaced with solid color
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(Icons.people,
+                          Icon(Icons.people,
                               color: Color(0xFFbbdefb), size: 16),
-                          const SizedBox(width: 6),
-                          const Text(
+                          SizedBox(width: 6),
+                          Text(
                             '25',
                             style: TextStyle(
                               color: Color(0xFFbbdefb),
@@ -107,15 +110,16 @@ class _LiveSessionState extends State<LiveSession> {
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
+                                boxShadow: const [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
+                                    color: Color(0xFF000000), // Solid black
                                     blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                                    offset: Offset(0, 4),
                                   ),
                                 ],
                                 border: Border.all(
-                                    color: Colors.white.withOpacity(0.1)),
+                                    color: const Color(
+                                        0xFF2c3e50)), // Solid border
                               ),
                               child: Stack(
                                 children: [
@@ -135,7 +139,7 @@ class _LiveSessionState extends State<LiveSession> {
                                         shape: BoxShape.circle,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black26,
+                                            color: Color(0xFF000000),
                                             blurRadius: 8,
                                             offset: Offset(0, 4),
                                           ),
@@ -160,7 +164,8 @@ class _LiveSessionState extends State<LiveSession> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.6),
+                                        color: const Color(
+                                            0xFF000000), // Solid black
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: const Text(
@@ -218,15 +223,16 @@ class _LiveSessionState extends State<LiveSession> {
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
+                                boxShadow: const [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
+                                    color: Color(0xFF000000), // Solid black
                                     blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                                    offset: Offset(0, 4),
                                   ),
                                 ],
                                 border: Border.all(
-                                    color: Colors.white.withOpacity(0.1)),
+                                    color: const Color(
+                                        0xFF2c3e50)), // Solid border
                               ),
                               child: Stack(
                                 children: [
@@ -246,7 +252,7 @@ class _LiveSessionState extends State<LiveSession> {
                                         shape: BoxShape.circle,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black26,
+                                            color: Color(0xFF000000),
                                             blurRadius: 8,
                                             offset: Offset(0, 4),
                                           ),
@@ -271,7 +277,8 @@ class _LiveSessionState extends State<LiveSession> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.6),
+                                        color: const Color(
+                                            0xFF000000), // Solid black
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: const Text(
@@ -297,12 +304,12 @@ class _LiveSessionState extends State<LiveSession> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          const Row(
                             children: [
-                              const Icon(Icons.people,
+                              Icon(Icons.people,
                                   color: Color(0xFFbbdefb), size: 20),
-                              const SizedBox(width: 10),
-                              const Text(
+                              SizedBox(width: 10),
+                              Text(
                                 'Participants (25)',
                                 style: TextStyle(
                                   color: Color(0xFFbbdefb),
@@ -316,10 +323,11 @@ class _LiveSessionState extends State<LiveSession> {
                           Container(
                             padding: const EdgeInsets.all(15),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.2),
+                              color: const Color(0xFF0d1a26), // Solid dark blue
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: Colors.white.withOpacity(0.05)),
+                                  color:
+                                      const Color(0xFF1a2a3a)), // Solid border
                             ),
                             child: Column(
                               children: [
@@ -343,12 +351,12 @@ class _LiveSessionState extends State<LiveSession> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          const Row(
                             children: [
-                              const Icon(Icons.settings,
+                              Icon(Icons.settings,
                                   color: Color(0xFFbbdefb), size: 20),
-                              const SizedBox(width: 10),
-                              const Text(
+                              SizedBox(width: 10),
+                              Text(
                                 'ACTIONS',
                                 style: TextStyle(
                                   color: Color(0xFFbbdefb),
@@ -418,10 +426,10 @@ class _LiveSessionState extends State<LiveSession> {
               // Footer Actions (Fixed at bottom)
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0d1a26), // Solid dark blue
                   border: Border(
-                    top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    top: BorderSide(color: Color(0xFF2c3e50)), // Solid border
                   ),
                 ),
                 child: Row(
@@ -434,11 +442,11 @@ class _LiveSessionState extends State<LiveSession> {
                             colors: [Color(0xFFf44336), Color(0xFFd32f2f)],
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
+                          boxShadow: const [
                             BoxShadow(
-                              color: const Color(0xFFf44336).withOpacity(0.3),
+                              color: Color(0xFFb71c1c), // Solid dark red
                               blurRadius: 12,
-                              offset: const Offset(0, 4),
+                              offset: Offset(0, 4),
                             ),
                           ],
                         ),
@@ -447,13 +455,13 @@ class _LiveSessionState extends State<LiveSession> {
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () {},
-                            child: Row(
+                            child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.fiber_manual_record,
+                                Icon(Icons.fiber_manual_record,
                                     color: Colors.white, size: 20),
-                                const SizedBox(width: 10),
-                                const Text(
+                                SizedBox(width: 10),
+                                Text(
                                   'Record Session',
                                   style: TextStyle(
                                     color: Colors.white,
@@ -476,11 +484,11 @@ class _LiveSessionState extends State<LiveSession> {
                             colors: [Color(0xFF78909c), Color(0xFF546e7a)],
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
+                          boxShadow: const [
                             BoxShadow(
-                              color: const Color(0xFF546e7a).withOpacity(0.3),
+                              color: Color(0xFF37474f), // Solid dark blue-gray
                               blurRadius: 12,
-                              offset: const Offset(0, 4),
+                              offset: Offset(0, 4),
                             ),
                           ],
                         ),
@@ -489,13 +497,13 @@ class _LiveSessionState extends State<LiveSession> {
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () => Navigator.pop(context),
-                            child: Row(
+                            child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.exit_to_app,
+                                Icon(Icons.exit_to_app,
                                     color: Colors.white, size: 20),
-                                const SizedBox(width: 10),
-                                const Text(
+                                SizedBox(width: 10),
+                                Text(
                                   'Leave',
                                   style: TextStyle(
                                     color: Colors.white,
@@ -528,8 +536,8 @@ class _LiveSessionState extends State<LiveSession> {
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
                 colors: [Color(0xFF7986cb), Color(0xFF3949ab)],
               ),
               shape: BoxShape.circle,
@@ -559,7 +567,7 @@ class _LiveSessionState extends State<LiveSession> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFff9800).withOpacity(0.2),
+                color: const Color(0xFF332200), // Dark orange background
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const Text(
@@ -575,7 +583,7 @@ class _LiveSessionState extends State<LiveSession> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF81c784).withOpacity(0.2),
+                color: const Color(0xFF1b3e1b), // Dark green background
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const Text(
@@ -602,9 +610,9 @@ class _LiveSessionState extends State<LiveSession> {
         child: Container(
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.2),
+            color: const Color(0xFF0d1a26), // Solid dark blue
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: const Color(0xFF1a2a3a)), // Solid border
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
