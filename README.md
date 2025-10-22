@@ -1,4 +1,3 @@
-```markdown
 # SignSync Academy 📚
 
 <div align="center">
@@ -243,6 +242,3 @@ For support and questions:
 *Breaking communication barriers through technology*
 
 </div>
-```
-
-You can copy this entire content and save it as `README.md` in your project root directory. The structure matches your actual file organization with the shared, educator, student, and parent pages.
