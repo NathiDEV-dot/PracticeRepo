@@ -21,13 +21,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  fonts:
-    - family: Inter
-      fonts:
-        - asset: fonts/Inter-Regular.ttf
-        - asset: fonts/Inter-Medium.ttf
-        - asset: fonts/Inter-SemiBold.ttf
-        - asset: fonts/Inter-Bold.ttf
-
-  assets:
-    - assets/videos/
+  
