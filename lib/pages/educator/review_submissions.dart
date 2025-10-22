@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class ReviewSubmissions extends StatefulWidget {
@@ -82,8 +84,9 @@ class _ReviewSubmissionsState extends State<ReviewSubmissions> {
 
   List<Map<String, dynamic>> get _filteredSubmissions {
     if (_selectedFilter == 0) return _submissions;
-    if (_selectedFilter == 1)
+    if (_selectedFilter == 1) {
       return _submissions.where((s) => s['status'] == 'pending').toList();
+    }
     return _submissions.where((s) => s['status'] == 'graded').toList();
   }
 
@@ -135,8 +138,8 @@ class _ReviewSubmissionsState extends State<ReviewSubmissions> {
         onPressed: _quickGrade,
         backgroundColor: _getPrimaryColor(),
         foregroundColor: Colors.white,
-        child: const Icon(Icons.edit_document),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: const Icon(Icons.edit_document),
       ),
     );
   }
@@ -565,8 +568,9 @@ class _ReviewSubmissionsState extends State<ReviewSubmissions> {
 
   Color _getDueDateColor(String dueDate) {
     if (dueDate.contains('ago')) return Colors.red;
-    if (dueDate.contains('today') || dueDate.contains('tomorrow'))
+    if (dueDate.contains('today') || dueDate.contains('tomorrow')) {
       return Colors.orange;
+    }
     return _getTextColor().withOpacity(0.6);
   }
 

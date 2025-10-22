@@ -1,5 +1,6 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
-import 'dart:io';
 import 'video_editor.dart'; // Add this import
 
 class LessonCreation extends StatefulWidget {
@@ -88,7 +89,8 @@ class _LessonCreationState extends State<LessonCreation> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _primaryColor.withOpacity(0.1),
+                color: _primaryColor
+                    .withAlpha(25), // Replaced withOpacity with withAlpha
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.help_outline_rounded,
@@ -203,7 +205,7 @@ class _LessonCreationState extends State<LessonCreation> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withAlpha(25), // Replaced withOpacity with withAlpha
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: color.withOpacity(0.3)),
           ),
@@ -389,7 +391,8 @@ class _LessonCreationState extends State<LessonCreation> {
           children: [
             // Video thumbnail placeholder
             Container(
-              color: _primaryColor.withOpacity(0.1),
+              color: _primaryColor
+                  .withAlpha(25), // Replaced withOpacity with withAlpha
               child: const Icon(Icons.videocam_rounded,
                   size: 60, color: Colors.grey),
             ),
@@ -459,7 +462,8 @@ class _LessonCreationState extends State<LessonCreation> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color
+                      .withAlpha(25), // Replaced withOpacity with withAlpha
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: color.withOpacity(0.3)),
                 ),
@@ -578,7 +582,7 @@ class _LessonCreationState extends State<LessonCreation> {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withAlpha(50), // Replaced withOpacity with withAlpha
             borderRadius: BorderRadius.circular(size / 2),
             border: Border.all(color: color.withOpacity(0.4)),
           ),
@@ -622,7 +626,8 @@ class _LessonCreationState extends State<LessonCreation> {
             });
           },
           backgroundColor: _getCardColor(),
-          selectedColor: _primaryColor.withOpacity(0.1),
+          selectedColor: _primaryColor
+              .withAlpha(25), // Replaced withOpacity with withAlpha
           checkmarkColor: _primaryColor,
           side: BorderSide(
             color: isSelected ? _primaryColor : _getBorderColor(),
@@ -685,7 +690,8 @@ class _LessonCreationState extends State<LessonCreation> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color
+                      .withAlpha(25), // Replaced withOpacity with withAlpha
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: color.withOpacity(0.3)),
                 ),
@@ -742,7 +748,7 @@ class _LessonCreationState extends State<LessonCreation> {
                 ),
                 elevation: 2,
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.save_rounded, size: 20),
@@ -774,7 +780,8 @@ class _LessonCreationState extends State<LessonCreation> {
     await Future.delayed(const Duration(seconds: 1));
 
     setState(() {
-      _selectedVideo = File('/path/to/selected/video.mp4'); // Simulated file
+      _selectedVideo =
+          const File('/path/to/selected/video.mp4'); // Simulated file
     });
   }
 
@@ -801,15 +808,6 @@ class _LessonCreationState extends State<LessonCreation> {
   }
 
   // Recording Methods
-  void _startRecording() {
-    setState(() {
-      _isRecording = true;
-      _isPaused = false;
-      _recordingTime = const Duration();
-    });
-    _startTimer();
-  }
-
   void _pauseRecording() {
     setState(() {
       _isPaused = true;
@@ -829,7 +827,7 @@ class _LessonCreationState extends State<LessonCreation> {
       _isPaused = false;
     });
     // Simulate saving recorded video
-    _selectedVideo = File('/path/to/recorded/video.mp4');
+    _selectedVideo = const File('/path/to/recorded/video.mp4');
   }
 
   void _startTimer() {
@@ -1014,7 +1012,8 @@ class _CameraRecordingPageState extends State<CameraRecordingPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.2),
+                  color: Colors.red
+                      .withAlpha(50), // Replaced withOpacity with withAlpha
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -1128,7 +1127,7 @@ class _CameraRecordingPageState extends State<CameraRecordingPage> {
       _isPaused = false;
     });
     // Return the recorded video file
-    Navigator.pop(context, File('/path/to/recorded/video.mp4'));
+    Navigator.pop(context, const File('/path/to/recorded/video.mp4'));
   }
 
   void _toggleFlash() {

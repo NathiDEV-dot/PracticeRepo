@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class ParentAuthScreen extends StatefulWidget {
@@ -124,10 +126,12 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                             icon: Icons.email,
                             keyboardType: TextInputType.emailAddress,
                             validator: (value) {
-                              if (value!.isEmpty)
+                              if (value!.isEmpty) {
                                 return 'Please enter email address';
-                              if (!value.contains('@'))
+                              }
+                              if (!value.contains('@')) {
                                 return 'Please enter a valid email';
+                              }
                               return null;
                             },
                           ),
@@ -165,10 +169,12 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                             icon: Icons.cake,
                             keyboardType: TextInputType.number,
                             validator: (value) {
-                              if (value!.isEmpty)
+                              if (value!.isEmpty) {
                                 return 'Please enter child\'s age';
-                              if (int.tryParse(value) == null)
+                              }
+                              if (int.tryParse(value) == null) {
                                 return 'Please enter a valid age';
+                              }
                               return null;
                             },
                           ),

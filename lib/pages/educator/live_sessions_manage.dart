@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class LiveSessionsManage extends StatefulWidget {
@@ -385,7 +387,7 @@ class _LiveSessionsManageState extends State<LiveSessionsManage> {
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.live_tv_rounded,
                         color: Colors.white,
                         size: 24,
@@ -593,7 +595,7 @@ class _LiveSessionsManageState extends State<LiveSessionsManage> {
 
   Color _darkenColor(Color color) {
     final hsl = HSLColor.fromColor(color);
-    return hsl.withLightness(hsl.lightness * 0.7).toColor();
+    return hsl.withLightness((hsl.lightness * 0.7).clamp(0.0, 1.0)).toColor();
   }
 
   void _searchSessions() {

@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class StudentDashboard extends StatefulWidget {
@@ -155,9 +157,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
               color: const Color(0xFF4CAF50).withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
+            child: const Icon(
               Icons.school,
-              color: const Color(0xFF4CAF50),
+              color: Color(0xFF4CAF50),
               size: 24,
             ),
           ),
@@ -209,9 +211,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.trending_up,
-                color: const Color(0xFF4CAF50),
+                color: Color(0xFF4CAF50),
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -256,12 +258,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   color: _getTextColor().withOpacity(0.6),
                 ),
               ),
-              Text(
+              const Text(
                 '85%',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF4CAF50),
+                  color: Color(0xFF4CAF50),
                 ),
               ),
             ],
@@ -437,16 +439,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
               color: const Color(0xFF4CAF50).withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.circle, color: Colors.green, size: 8),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Text(
                   'LIVE',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF4CAF50),
+                    color: Color(0xFF4CAF50),
                   ),
                 ),
               ],

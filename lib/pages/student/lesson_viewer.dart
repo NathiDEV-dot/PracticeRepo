@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class LessonViewer extends StatefulWidget {
@@ -155,15 +157,15 @@ class _LessonViewerState extends State<LessonViewer> {
           Row(
             children: [
               IconButton(
-                icon: Icon(Icons.fast_rewind_rounded,
+                icon: const Icon(Icons.fast_rewind_rounded,
                     color: Colors.white, size: 24),
                 onPressed: () {},
               ),
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4299E1),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF4299E1),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
@@ -180,7 +182,7 @@ class _LessonViewerState extends State<LessonViewer> {
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.fast_forward_rounded,
+                icon: const Icon(Icons.fast_forward_rounded,
                     color: Colors.white, size: 24),
                 onPressed: () {},
               ),
@@ -190,13 +192,13 @@ class _LessonViewerState extends State<LessonViewer> {
           Row(
             children: [
               IconButton(
-                icon:
-                    Icon(Icons.zoom_in_rounded, color: Colors.white, size: 24),
+                icon: const Icon(Icons.zoom_in_rounded,
+                    color: Colors.white, size: 24),
                 onPressed: () {},
               ),
               IconButton(
-                icon:
-                    Icon(Icons.download_rounded, color: Colors.white, size: 24),
+                icon: const Icon(Icons.download_rounded,
+                    color: Colors.white, size: 24),
                 onPressed: () {},
               ),
             ],
@@ -226,8 +228,8 @@ class _LessonViewerState extends State<LessonViewer> {
           // Section title
           Row(
             children: [
-              Icon(Icons.info_outline_rounded,
-                  color: const Color(0xFF4299E1), size: 20),
+              const Icon(Icons.info_outline_rounded,
+                  color: Color(0xFF4299E1), size: 20),
               const SizedBox(width: 10),
               Text(
                 'Lesson Details',
@@ -257,7 +259,7 @@ class _LessonViewerState extends State<LessonViewer> {
   }
 
   Widget _buildDetailItem(IconData icon, String text) {
-    return Container(
+    return SizedBox(
       width: 200,
       child: Row(
         children: [
@@ -295,8 +297,8 @@ class _LessonViewerState extends State<LessonViewer> {
           // Section title
           Row(
             children: [
-              Icon(Icons.flash_on_rounded,
-                  color: const Color(0xFF4299E1), size: 20),
+              const Icon(Icons.flash_on_rounded,
+                  color: Color(0xFF4299E1), size: 20),
               const SizedBox(width: 10),
               Text(
                 'Actions',
@@ -370,7 +372,7 @@ class _LessonViewerState extends State<LessonViewer> {
       ),
       child: Row(
         children: [
-          Icon(Icons.arrow_forward_rounded, color: const Color(0xFF4299E1)),
+          const Icon(Icons.arrow_forward_rounded, color: Color(0xFF4299E1)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -404,19 +406,19 @@ class _LessonViewerState extends State<LessonViewer> {
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
+                child: const Row(
                   children: [
                     Text(
                       'Start',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: const Color(0xFF4299E1),
+                        color: Color(0xFF4299E1),
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     Icon(Icons.chevron_right_rounded,
-                        size: 18, color: const Color(0xFF4299E1)),
+                        size: 18, color: Color(0xFF4299E1)),
                   ],
                 ),
               ),

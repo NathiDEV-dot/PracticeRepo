@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class ParentDashboard extends StatefulWidget {
@@ -64,7 +66,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Supporting Young Learners',
                   style: TextStyle(
                     fontSize: 20,
@@ -202,10 +204,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
               ),
               Text(
                 progress,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFFFF9800),
+                  color: Color(0xFFFF9800),
                 ),
               ),
             ],

@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class HomeworkSubmission extends StatefulWidget {
@@ -59,11 +61,11 @@ class _HomeworkSubmissionState extends State<HomeworkSubmission> {
                     ),
                     elevation: 0,
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.send_rounded, size: 16),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Text('Submit',
                           style: TextStyle(fontWeight: FontWeight.w500)),
                     ],
@@ -520,12 +522,12 @@ class _HomeworkSubmissionState extends State<HomeworkSubmission> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Review Recording'),
-        content: Text('Video review functionality would open here.'),
+        title: const Text('Review Recording'),
+        content: const Text('Video review functionality would open here.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('OK'),
+            child: const Text('OK'),
           ),
         ],
       ),
@@ -537,22 +539,22 @@ class _HomeworkSubmissionState extends State<HomeworkSubmission> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: Row(
+          title: const Row(
             children: [
               Icon(Icons.check_circle_rounded, color: Colors.green),
               SizedBox(width: 8),
               Text('Assignment Submitted'),
             ],
           ),
-          content:
-              Text('Your Science Lab Report has been submitted successfully!'),
+          content: const Text(
+              'Your Science Lab Report has been submitted successfully!'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
                 Navigator.pop(context);
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
           ],
         ),
