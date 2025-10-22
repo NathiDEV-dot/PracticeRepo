@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -90,7 +92,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 position: _slideAnimation,
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0,
+                      vertical: 24.0), // Fixed horizontal padding
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minHeight: MediaQuery.of(context).size.height -
@@ -113,7 +117,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                         // Get Started Button
                         _buildGetStartedButton(),
-                        const SizedBox(height: 20), // Extra padding at bottom
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -147,7 +151,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         Text(
           'Welcome to\nSignSync Academy',
           style: TextStyle(
-            fontSize: 28, // Reduced from 32
+            fontSize: 28,
             fontWeight: FontWeight.w700,
             color: _getTextColor(),
             height: 1.2,
@@ -157,8 +161,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         Text(
           'Master South African Sign Language through immersive learning experiences',
           style: TextStyle(
-            fontSize: 14, // Reduced from 16
-            color: _getTextColor().withAlpha((0.7 * 255).round()),
+            fontSize: 14,
+            color: _getSecondaryTextColor(), // Fixed contrast
             fontWeight: FontWeight.w400,
             height: 1.5,
           ),
@@ -170,7 +174,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Widget _buildIntroductionSection() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20), // Reduced padding
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _getCardColor(),
         borderRadius: BorderRadius.circular(16),
@@ -180,7 +184,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha((0.05 * 255).round()),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 15,
             offset: const Offset(0, 3),
           ),
@@ -189,14 +193,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       child: Row(
         children: [
           Container(
-            width: 48, // Reduced from 56
-            height: 48, // Reduced from 56
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: _hasViewedIntro
-                  ? const Color(0xFF667EEA)
-                      .withAlpha(51) // 0.2 opacity = 51 alpha
-                  : const Color(0xFF667EEA)
-                      .withAlpha(26), // 0.1 opacity = 26 alpha
+                  ? const Color(0xFF667EEA).withOpacity(0.2)
+                  : const Color(0xFF667EEA).withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: _hasViewedIntro
                   ? Border.all(color: const Color(0xFF667EEA), width: 2)
@@ -206,11 +208,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               Icons.info_rounded,
               color: _hasViewedIntro
                   ? const Color(0xFF667EEA)
-                  : const Color(0xFF667EEA).withAlpha((0.7 * 255).round()),
-              size: 24, // Reduced from 32
+                  : const Color(0xFF667EEA).withOpacity(0.7),
+              size: 24,
             ),
           ),
-          const SizedBox(width: 12), // Reduced from 16
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,19 +220,19 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 Text(
                   'Platform Introduction',
                   style: TextStyle(
-                    fontSize: 16, // Reduced from 18
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: _getTextColor(),
                   ),
                 ),
-                const SizedBox(height: 2), // Reduced from 4
+                const SizedBox(height: 2),
                 Text(
                   _hasViewedIntro
                       ? 'Introduction completed ✓'
                       : 'Learn about our platform features',
                   style: TextStyle(
-                    fontSize: 12, // Reduced from 14
-                    color: _getTextColor().withAlpha((0.6 * 255).round()),
+                    fontSize: 12,
+                    color: _getSecondaryTextColor(), // Fixed contrast
                     height: 1.3,
                   ),
                 ),
@@ -239,8 +241,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ),
           Icon(
             Icons.arrow_forward_ios_rounded,
-            color: _getTextColor().withAlpha((0.4 * 255).round()),
-            size: 16, // Reduced from 18
+            color: _getHintColor(), // Fixed contrast
+            size: 16,
           ),
         ],
       ),
@@ -254,45 +256,55 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         Text(
           'Select Your Role',
           style: TextStyle(
-            fontSize: 18, // Reduced from 20
+            fontSize: 18,
             fontWeight: FontWeight.w600,
             color: _getTextColor(),
           ),
         ),
-        const SizedBox(height: 16), // Reduced from 20
-        // Use Wrap instead of Row for better responsiveness
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _buildRoleCard(
-              icon: Icons.school_rounded,
-              title: 'Educator',
-              subtitle: 'Teacher',
-              role: 'educator',
-              isSelected: _selectedRole == 'educator',
-            ),
-            _buildRoleCard(
-              icon: Icons.person_rounded,
-              title: 'Student',
-              subtitle: 'Learner',
-              role: 'student',
-              isSelected: _selectedRole == 'student',
-            ),
-            _buildRoleCard(
-              icon: Icons.family_restroom_rounded,
-              title: 'Parent',
-              subtitle: 'Guardian',
-              role: 'parent',
-              isSelected: _selectedRole == 'parent',
-            ),
-          ],
+        const SizedBox(height: 16),
+        // Use LayoutBuilder for responsive width calculation
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth =
+                (constraints.maxWidth - 24) / 3; // Account for spacing
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _buildRoleCard(
+                  width: cardWidth,
+                  icon: Icons.school_rounded,
+                  title: 'Educator',
+                  subtitle: 'Teacher',
+                  role: 'educator',
+                  isSelected: _selectedRole == 'educator',
+                ),
+                _buildRoleCard(
+                  width: cardWidth,
+                  icon: Icons.person_rounded,
+                  title: 'Student',
+                  subtitle: 'Learner',
+                  role: 'student',
+                  isSelected: _selectedRole == 'student',
+                ),
+                _buildRoleCard(
+                  width: cardWidth,
+                  icon: Icons.family_restroom_rounded,
+                  title: 'Parent',
+                  subtitle: 'Guardian',
+                  role: 'parent',
+                  isSelected: _selectedRole == 'parent',
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
   }
 
   Widget _buildRoleCard({
+    required double width,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -300,12 +312,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     required bool isSelected,
   }) {
     return SizedBox(
-      width: (MediaQuery.of(context).size.width - 72) / 3, // Responsive width
+      width: width,
       child: Container(
-        height: 120, // Reduced from 140
+        height: 120,
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF667EEA).withAlpha(26) // 0.1 opacity = 26 alpha
+              ? const Color(0xFF667EEA).withOpacity(0.1)
               : _getCardColor(),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
@@ -314,7 +326,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha((0.03 * 255).round()),
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -326,42 +338,42 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             borderRadius: BorderRadius.circular(12),
             onTap: () => _selectRole(role),
             child: Padding(
-              padding: const EdgeInsets.all(16), // Reduced from 20
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 36, // Reduced from 40
-                    height: 36, // Reduced from 40
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: isSelected
                           ? const Color(0xFF667EEA)
-                          : _getTextColor().withAlpha((0.1 * 255).round()),
+                          : _getIconBackgroundColor(), // Fixed contrast
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       icon,
                       color: isSelected
                           ? Colors.white
-                          : _getTextColor().withAlpha((0.7 * 255).round()),
-                      size: 18, // Reduced from 20
+                          : _getIconColor(), // Fixed contrast
+                      size: 18,
                     ),
                   ),
                   const Spacer(),
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 14, // Reduced from 16
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: _getTextColor(),
                     ),
                   ),
-                  const SizedBox(height: 2), // Reduced from 4
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontSize: 11, // Reduced from 12
-                      color: _getTextColor().withAlpha((0.6 * 255).round()),
+                      fontSize: 11,
+                      color: _getSecondaryTextColor(), // Fixed contrast
                     ),
                   ),
                 ],
@@ -384,16 +396,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           onPressed: isEnabled ? _navigateToAuth : null,
           style: ElevatedButton.styleFrom(
             backgroundColor:
-                isEnabled ? const Color(0xFF667EEA) : Colors.grey[400],
+                isEnabled ? const Color(0xFF667EEA) : _getDisabledButtonColor(),
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(
-              vertical: 16,
-            ), // Reduced from 18
+            padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            elevation: 0,
-            shadowColor: Colors.transparent,
+            elevation: isEnabled ? 4 : 0,
+            shadowColor: isEnabled
+                ? const Color(0xFF667EEA).withOpacity(0.3)
+                : Colors.transparent,
           ),
           child: const Text(
             'Get Started',
@@ -420,8 +432,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF667EEA)
-                        .withAlpha(26), // 0.1 opacity = 26 alpha
+                    color: const Color(0xFF667EEA).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -435,7 +446,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   child: Text(
                     'Welcome to SignSync Academy',
                     style: TextStyle(
-                      fontSize: 18, // Reduced from 20
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: _getTextColor(),
                     ),
@@ -443,27 +454,27 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 16), // Reduced from 20
+            const SizedBox(height: 16),
             _buildFeatureItem(
               'Interactive SASL Lessons',
               'Learn through video tutorials and practice sessions',
             ),
-            const SizedBox(height: 10), // Reduced from 12
+            const SizedBox(height: 10),
             _buildFeatureItem(
               'Progress Tracking',
               'Monitor your learning journey with analytics',
             ),
-            const SizedBox(height: 10), // Reduced from 12
+            const SizedBox(height: 10),
             _buildFeatureItem(
               'Expert Educators',
               'Learn from certified SASL instructors',
             ),
-            const SizedBox(height: 10), // Reduced from 12
+            const SizedBox(height: 10),
             _buildFeatureItem(
               'Community Support',
               'Connect with other learners',
             ),
-            const SizedBox(height: 20), // Reduced from 24
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -473,12 +484,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF667EEA),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                  ), // Reduced from 16
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 4,
+                  shadowColor: const Color(0xFF667EEA).withOpacity(0.3),
                 ),
                 child: const Text(
                   'Continue',
@@ -499,9 +510,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         const Icon(
           Icons.check_circle_rounded,
           color: Color(0xFF4CAF50),
-          size: 18, // Reduced from 20
+          size: 18,
         ),
-        const SizedBox(width: 10), // Reduced from 12
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -519,7 +530,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 description,
                 style: TextStyle(
                   fontSize: 12,
-                  color: _getTextColor().withAlpha((0.6 * 255).round()),
+                  color: _getSecondaryTextColor(), // Fixed contrast
                 ),
               ),
             ],
@@ -529,6 +540,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
+  // Color methods for better contrast
   Color _getBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF0F0F1E)
@@ -541,6 +553,18 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         : const Color(0xFF2D3748);
   }
 
+  Color _getSecondaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFB3B3B3)
+        : const Color(0xFF666666);
+  }
+
+  Color _getHintColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF888888)
+        : const Color(0xFF999999);
+  }
+
   Color _getCardColor() {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF1E1E2E)
@@ -551,6 +575,24 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
+  }
+
+  Color _getIconBackgroundColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF333344)
+        : const Color(0xFFF0F4F8);
+  }
+
+  Color _getIconColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFB3B3B3)
+        : const Color(0xFF666666);
+  }
+
+  Color _getDisabledButtonColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF444455)
+        : const Color(0xFFCBD5E0);
   }
 }
 

@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 
 class EducatorAuthScreen extends StatefulWidget {
@@ -19,80 +21,135 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _getBackgroundColor(),
-      appBar: AppBar(
-        title: const Text('Educator Registration'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: _getTextColor()),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
+      backgroundColor: const Color(0xFF667EEA),
+      body: SafeArea(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(),
-              const SizedBox(height: 32),
-              _buildTextField(
-                controller: _nameController,
-                label: 'First Name',
-                hintText: 'Enter your first name',
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your first name' : null,
+              // Custom App Bar
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Educator Registration',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: _surnameController,
-                label: 'Last Name',
-                hintText: 'Enter your last name',
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your last name' : null,
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _getCardColor(),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.all(24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          _buildHeader(),
+                          const SizedBox(height: 32),
+                          _buildTextFieldWithIcon(
+                            controller: _nameController,
+                            label: 'First Name',
+                            hintText: 'Enter your first name',
+                            icon: Icons.person,
+                            validator: (value) => value!.isEmpty
+                                ? 'Please enter your first name'
+                                : null,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildTextFieldWithIcon(
+                            controller: _surnameController,
+                            label: 'Last Name',
+                            hintText: 'Enter your last name',
+                            icon: Icons.person_outline,
+                            validator: (value) => value!.isEmpty
+                                ? 'Please enter your last name'
+                                : null,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildTextFieldWithIcon(
+                            controller: _gradesController,
+                            label: 'Grades You Teach',
+                            hintText: 'e.g., Grade 4-7, Grade 8-9',
+                            icon: Icons.school,
+                            validator: (value) =>
+                                value!.isEmpty ? 'Please enter grades' : null,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildTextFieldWithIcon(
+                            controller: _subjectsController,
+                            label: 'Subjects You Teach',
+                            hintText: 'e.g., English, Mathematics, SASL',
+                            icon: Icons.menu_book,
+                            validator: (value) =>
+                                value!.isEmpty ? 'Please enter subjects' : null,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildTextFieldWithIcon(
+                            controller: _schoolController,
+                            label: 'School Name',
+                            hintText: 'Enter your school name',
+                            icon: Icons.business,
+                            validator: (value) => value!.isEmpty
+                                ? 'Please enter school name'
+                                : null,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildTextFieldWithIcon(
+                            controller: _emailController,
+                            label: 'School Email',
+                            hintText: 'your.name@school.edu.za',
+                            icon: Icons.email,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value!.isEmpty) {
+                                return 'Please enter school email';
+                              }
+                              if (!value.contains('@')) {
+                                return 'Please enter a valid email';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 40),
+                          _buildSubmitButton(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: _gradesController,
-                label: 'Grades You Teach',
-                hintText: 'e.g., Grade 4-7, Grade 8-9',
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter grades' : null,
-              ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: _subjectsController,
-                label: 'Subjects You Teach',
-                hintText: 'e.g., English, Mathematics, SASL',
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter subjects' : null,
-              ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: _schoolController,
-                label: 'School Name',
-                hintText: 'Enter your school name',
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter school name' : null,
-              ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: _emailController,
-                label: 'School Email',
-                hintText: 'your.name@school.edu.za',
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value!.isEmpty) return 'Please enter school email';
-                  if (!value.contains('@')) return 'Please enter a valid email';
-                  // Remove the strict .edu.za validation for testing
-                  return null;
-                },
-              ),
-              const SizedBox(height: 40),
-              _buildSubmitButton(),
             ],
           ),
         ),
@@ -102,24 +159,27 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
 
   Widget _buildHeader() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 60,
-          height: 60,
+          width: 80,
+          height: 80,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF667EEA).withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          child: const Icon(
-            Icons.school_rounded,
-            color: Colors.white,
-            size: 30,
-          ),
+          child:
+              const Icon(Icons.school_rounded, color: Colors.white, size: 40),
         ),
         const SizedBox(height: 20),
         Text(
@@ -130,22 +190,23 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
             color: _getTextColor(),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
-          'Please provide your professional information to create your educator account',
+          'Create your professional account',
           style: TextStyle(
             fontSize: 16,
-            color: _getSecondaryTextColor(),
+            color: _getTextColor().withOpacity(0.7),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildTextFieldWithIcon({
     required TextEditingController controller,
     required String label,
     required String hintText,
+    required IconData icon,
     required String? Function(String?) validator,
     TextInputType keyboardType = TextInputType.text,
   }) {
@@ -161,41 +222,64 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: TextStyle(color: _getHintColor()),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _getBorderColor()),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _getBorderColor()),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF667EEA), width: 2),
-            ),
-            filled: true,
-            fillColor: _getCardColor(),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          style: TextStyle(color: _getTextColor()),
+          child: TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            validator: validator,
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(color: _getHintColor()),
+              prefixIcon: Icon(icon, color: _getIconColor()),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _getBorderColor()),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _getBorderColor()),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: Color(0xFF667EEA), width: 2),
+              ),
+              filled: true,
+              fillColor:
+                  _getTextFieldBackgroundColor(), // FIXED: Different background for text fields
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            ),
+            style: TextStyle(color: _getTextColor(), fontSize: 16),
+          ),
         ),
       ],
     );
   }
 
   Widget _buildSubmitButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF667EEA).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ElevatedButton(
         onPressed: _submitForm,
         style: ElevatedButton.styleFrom(
@@ -203,13 +287,16 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
           elevation: 0,
         ),
         child: const Text(
           'Create Educator Account',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -218,7 +305,10 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       // Show success dialog
-      showDialog(context: context, builder: (context) => _buildSuccessDialog());
+      showDialog(
+        context: context,
+        builder: (context) => _buildSuccessDialog(),
+      );
     }
   }
 
@@ -231,7 +321,16 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 60),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle,
+                  color: Color(0xFF4CAF50), size: 60),
+            ),
             const SizedBox(height: 20),
             Text(
               'Registration Successful!',
@@ -247,19 +346,27 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: _getSecondaryTextColor(),
+                color: _getTextColor().withOpacity(0.7),
               ),
             ),
             const SizedBox(height: 24),
-            SizedBox(
+            Container(
               width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF667EEA).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pop();
                   Navigator.pushReplacementNamed(
-                    context,
-                    '/educator/dashboard',
-                  );
+                      context, '/educator/dashboard');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF667EEA),
@@ -278,10 +385,18 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
     );
   }
 
+  // FIXED: Color methods for better contrast
   Color _getBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF0F0F1E)
-        : const Color(0xFFF8FAFF);
+        ? const Color(0xFF1E1E2E)
+        : const Color(0xFFF7FAFC);
+  }
+
+  Color _getTextFieldBackgroundColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF2D2D3E) // Darker than card for contrast
+        : const Color(
+            0xFFF0F4F8); // Lighter shade for contrast against white card
   }
 
   Color _getTextColor() {
@@ -298,24 +413,20 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
 
   Color _getBorderColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF333344)
+        ? const Color(0xFF3D3D4E)
         : const Color(0xFFE2E8F0);
   }
 
-  // New method to replace .withOpacity(0.7) for secondary text
-  Color _getSecondaryTextColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFFB3B3B3) // Equivalent to white.withOpacity(0.7)
-        : const Color(
-            0xFF666666); // Equivalent to Color(0xFF2D3748).withOpacity(0.7)
-  }
-
-  // New method to replace .withOpacity(0.5) for hint text
   Color _getHintColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF999999) // Equivalent to white.withOpacity(0.5)
-        : const Color(
-            0xFF999999); // Equivalent to Color(0xFF2D3748).withOpacity(0.5)
+        ? const Color(0xFF888888)
+        : const Color(0xFF718096);
+  }
+
+  Color _getIconColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF888888)
+        : const Color(0xFF718096);
   }
 
   @override

@@ -106,32 +106,34 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
   Widget _buildHomeTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16, vertical: 16), // Reduced horizontal padding
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Welcome Header with improved design
           _buildWelcomeHeader(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
           // Dashboard Overview
           _buildSectionHeader('Dashboard Overview'),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Stats Cards Grid
           _buildStatsGrid(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
           // Quick Actions
           _buildSectionHeader('Quick Actions'),
           const SizedBox(height: 16),
           _buildQuickActions(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
           // Recent Activity
           _buildSectionHeader('Recent Activity'),
           const SizedBox(height: 16),
           _buildRecentActivity(),
+          const SizedBox(height: 20), // Extra bottom padding
         ],
       ),
     );
@@ -139,19 +141,20 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
   Widget _buildWelcomeHeader() {
     return Container(
+      width: double.infinity, // Ensure full width
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            _primaryColor.withOpacity(0.1),
-            _accentColor.withOpacity(0.05),
+            _getWelcomeGradientStart(),
+            _getWelcomeGradientEnd(),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _getBorderColor().withOpacity(0.3),
+          color: _getBorderColor(),
         ),
       ),
       child: Row(
@@ -188,7 +191,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                   'Mathematics Department • Grade 10-12',
                   style: TextStyle(
                     fontSize: 14,
-                    color: _getTextColor().withOpacity(0.7),
+                    color: _getSecondaryTextColor(),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -197,9 +200,9 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _successColor.withOpacity(0.1),
+                    color: _getSuccessBackgroundColor(),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _successColor.withOpacity(0.3)),
+                    border: Border.all(color: _getSuccessBorderColor()),
                   ),
                   child: Text(
                     'Last login: Today, 08:45 AM',
@@ -231,61 +234,68 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   }
 
   Widget _buildStatsGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(), // CORRECTED CLASS NAME
-      crossAxisCount: 2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.2,
-      children: [
-        _buildStatCard(
-          Icons.video_library_rounded,
-          '12',
-          'Video Lessons',
-          _primaryColor,
-          const [Color(0xFF4361EE), Color(0xFF3A0CA3)],
-        ),
-        _buildStatCard(
-          Icons.assignment_rounded,
-          '45',
-          'Assignments',
-          _successColor,
-          const [Color(0xFF4ADE80), Color(0xFF16A34A)],
-        ),
-        _buildStatCard(
-          Icons.people_alt_rounded,
-          '25',
-          'Active Students',
-          _warningColor,
-          const [Color(0xFFF59E0B), Color(0xFFD97706)],
-        ),
-        _buildStatCard(
-          Icons.schedule_rounded,
-          '8',
-          'Live Sessions',
-          _accentColor,
-          const [Color(0xFF4CC9F0), Color(0xFF0891B2)],
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth =
+            (constraints.maxWidth - 12) / 2; // Calculate responsive width
+        return GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.1,
+          children: [
+            _buildStatCard(
+              Icons.video_library_rounded,
+              '12',
+              'Video Lessons',
+              const [Color(0xFF4361EE), Color(0xFF3A0CA3)],
+              cardWidth,
+            ),
+            _buildStatCard(
+              Icons.assignment_rounded,
+              '45',
+              'Assignments',
+              const [Color(0xFF4ADE80), Color(0xFF16A34A)],
+              cardWidth,
+            ),
+            _buildStatCard(
+              Icons.people_alt_rounded,
+              '25',
+              'Active Students',
+              const [Color(0xFFF59E0B), Color(0xFFD97706)],
+              cardWidth,
+            ),
+            _buildStatCard(
+              Icons.schedule_rounded,
+              '8',
+              'Live Sessions',
+              const [Color(0xFF4CC9F0), Color(0xFF0891B2)],
+              cardWidth,
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildStatCard(IconData icon, String value, String label, Color color,
-      List<Color> gradientColors) {
+  Widget _buildStatCard(IconData icon, String value, String label,
+      List<Color> gradientColors, double width) {
     return Container(
+      width: width, // Use calculated width
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: _getCardColor(),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: _getShadowColor(),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
-          color: _getBorderColor().withOpacity(0.5),
+          color: _getBorderColor(),
         ),
       ),
       child: Padding(
@@ -324,7 +334,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                   label,
                   style: TextStyle(
                     fontSize: 12,
-                    color: _getTextColor().withOpacity(0.6),
+                    color: _getSecondaryTextColor(),
                     fontWeight: FontWeight.w500,
                   ),
                   maxLines: 2,
@@ -372,6 +382,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
   Widget _buildQuickActionItem(_QuickAction action) {
     return Container(
+      width: double.infinity, // Ensure full width
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: _getCardColor(),
@@ -384,7 +395,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: _getBorderColor().withOpacity(0.5),
+                color: _getBorderColor(),
               ),
             ),
             child: Row(
@@ -393,10 +404,10 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: action.color.withOpacity(0.1),
+                    color: _getActionIconBackgroundColor(action.color),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: action.color.withOpacity(0.2),
+                      color: _getActionIconBorderColor(action.color),
                     ),
                   ),
                   child: Icon(action.icon, color: action.color, size: 24),
@@ -419,7 +430,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                         'Tap to navigate',
                         style: TextStyle(
                           fontSize: 12,
-                          color: _getTextColor().withOpacity(0.5),
+                          color: _getHintColor(),
                         ),
                       ),
                     ],
@@ -427,7 +438,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                 ),
                 Icon(
                   Icons.arrow_forward_ios_rounded,
-                  color: _getTextColor().withOpacity(0.3),
+                  color: _getHintColor(),
                   size: 16,
                 ),
               ],
@@ -478,6 +489,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
   Widget _buildActivityItem(_ActivityItem activity) {
     return Container(
+      width: double.infinity, // Ensure full width
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: _getCardColor(),
@@ -490,7 +502,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _getBorderColor().withOpacity(0.3),
+                color: _getBorderColor(),
               ),
             ),
             child: Row(
@@ -499,7 +511,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: activity.color.withOpacity(0.1),
+                    color: _getActivityIconBackgroundColor(activity.color),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(activity.icon, color: activity.color, size: 20),
@@ -524,7 +536,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                         activity.time,
                         style: TextStyle(
                           fontSize: 12,
-                          color: _getTextColor().withOpacity(0.5),
+                          color: _getSecondaryTextColor(),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -533,7 +545,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: _getTextColor().withOpacity(0.3),
+                  color: _getHintColor(),
                   size: 20,
                 ),
               ],
@@ -551,7 +563,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
       type: BottomNavigationBarType.fixed,
       backgroundColor: _getCardColor(),
       selectedItemColor: _primaryColor,
-      unselectedItemColor: _getTextColor().withOpacity(0.5),
+      unselectedItemColor: _getHintColor(),
       selectedLabelStyle: const TextStyle(
         fontWeight: FontWeight.w600,
         fontSize: 12,
@@ -572,7 +584,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           activeIcon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _primaryColor.withOpacity(0.1),
+              color: _getNavBarActiveBackground(),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.dashboard_rounded),
@@ -587,7 +599,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           activeIcon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _primaryColor.withOpacity(0.1),
+              color: _getNavBarActiveBackground(),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.video_library_rounded),
@@ -602,7 +614,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           activeIcon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _primaryColor.withOpacity(0.1),
+              color: _getNavBarActiveBackground(),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.live_tv_rounded),
@@ -617,7 +629,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           activeIcon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _primaryColor.withOpacity(0.1),
+              color: _getNavBarActiveBackground(),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.rate_review_rounded),
@@ -628,10 +640,11 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
     );
   }
 
+  // Fixed color methods
   Color _getBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF0A0A14)
-        : const Color(0xFFF8FAFF);
+        ? const Color(0xFF0F0F1E) // Darker background for better contrast
+        : const Color(0xFFF5F7FA); // Lighter background for better contrast
   }
 
   Color _getTextColor() {
@@ -640,9 +653,21 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
         : const Color(0xFF1A202C);
   }
 
+  Color _getSecondaryTextColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFA0AEC0)
+        : const Color(0xFF718096);
+  }
+
+  Color _getHintColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF718096)
+        : const Color(0xFFA0AEC0);
+  }
+
   Color _getCardColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1A1A2E)
+        ? const Color(0xFF1E1E2E) // Darker card for better contrast
         : Colors.white;
   }
 
@@ -650,6 +675,81 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF2D3748)
         : const Color(0xFFE2E8F0);
+  }
+
+  Color _getShadowColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.black.withOpacity(0.4) // Darker shadows for dark mode
+        : Colors.black.withOpacity(0.08); // Lighter shadows for light mode
+  }
+
+  Color _getWelcomeGradientStart() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF1E3A8A).withOpacity(0.3)
+        : const Color(0xFF4361EE).withOpacity(0.15);
+  }
+
+  Color _getWelcomeGradientEnd() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF0EA5E9).withOpacity(0.15)
+        : const Color(0xFF4CC9F0).withOpacity(0.08);
+  }
+
+  Color _getSuccessBackgroundColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF064E3B)
+        : const Color(0xFFDCFCE7);
+  }
+
+  Color _getSuccessBorderColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF047857)
+        : const Color(0xFF86EFAC);
+  }
+
+  Color _getActionIconBackgroundColor(Color baseColor) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? _darkenColor(baseColor, 0.8)
+        : _lightenColor(baseColor, 0.9);
+  }
+
+  Color _getActionIconBorderColor(Color baseColor) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? _darkenColor(baseColor, 0.6)
+        : _lightenColor(baseColor, 0.7);
+  }
+
+  Color _getActivityIconBackgroundColor(Color baseColor) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? _darkenColor(baseColor, 0.85)
+        : _lightenColor(baseColor, 0.95);
+  }
+
+  Color _getNavBarActiveBackground() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF4361EE).withOpacity(0.3)
+        : const Color(0xFF4361EE).withOpacity(0.15);
+  }
+
+  // Helper methods to replace .withOpacity()
+  Color _darkenColor(Color color, double factor) {
+    assert(factor >= 0 && factor <= 1);
+    return Color.fromARGB(
+      color.alpha,
+      (color.red * factor).round(),
+      (color.green * factor).round(),
+      (color.blue * factor).round(),
+    );
+  }
+
+  Color _lightenColor(Color color, double factor) {
+    assert(factor >= 0 && factor <= 1);
+    return Color.fromARGB(
+      color.alpha,
+      (color.red + (255 - color.red) * factor).round(),
+      (color.green + (255 - color.green) * factor).round(),
+      (color.blue + (255 - color.blue) * factor).round(),
+    );
   }
 }
 

@@ -376,9 +376,9 @@ class _ContentManagementState extends State<ContentManagement> {
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 0.85,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.72, // Adjusted to prevent overflow
           ),
           itemCount: _videos.length,
           itemBuilder: (context, index) {
@@ -392,6 +392,9 @@ class _ContentManagementState extends State<ContentManagement> {
 
   Widget _buildContentCard(Map<String, dynamic> video) {
     return Container(
+      constraints: const BoxConstraints(
+        maxHeight: 200, // Added constraint to prevent overflow
+      ),
       decoration: BoxDecoration(
         color: _getCardColor(),
         borderRadius: BorderRadius.circular(16),
@@ -406,15 +409,17 @@ class _ContentManagementState extends State<ContentManagement> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // Changed to min to prevent expansion
         children: [
+          // Header with icon and title
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -424,7 +429,7 @@ class _ContentManagementState extends State<ContentManagement> {
                         _getLighterColor(video['color'] as Color),
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: _getMediumColor(video['color'] as Color),
                       width: 1.5,
@@ -433,10 +438,10 @@ class _ContentManagementState extends State<ContentManagement> {
                   child: Icon(
                     video['icon'] as IconData,
                     color: video['color'] as Color,
-                    size: 22,
+                    size: 16,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,7 +449,7 @@ class _ContentManagementState extends State<ContentManagement> {
                       Text(
                         video['title'],
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: _getTextColor(),
                           height: 1.3,
@@ -452,24 +457,24 @@ class _ContentManagementState extends State<ContentManagement> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: _getBackgroundColor(),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(5),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.schedule_rounded,
-                                size: 12, color: _getTextColorTertiary()),
-                            const SizedBox(width: 4),
+                                size: 10, color: _getTextColorTertiary()),
+                            const SizedBox(width: 2),
                             Text(
                               video['duration'],
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w500,
                                 color: _getTextColorTertiary(),
                               ),
@@ -483,26 +488,28 @@ class _ContentManagementState extends State<ContentManagement> {
               ],
             ),
           ),
+
+          // Stats section
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: _getBackgroundColorLight(),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
                 children: [
                   Row(
                     children: [
                       Icon(Icons.remove_red_eye_rounded,
-                          size: 14, color: _getTextColorTertiary()),
-                      const SizedBox(width: 6),
+                          size: 12, color: _getTextColorTertiary()),
+                      const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           '${video['views']} views',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.w500,
                             color: _getTextColorTertiary(),
                           ),
@@ -510,17 +517,17 @@ class _ContentManagementState extends State<ContentManagement> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Icon(Icons.people_rounded,
-                          size: 14, color: _getTextColorTertiary()),
-                      const SizedBox(width: 6),
+                          size: 12, color: _getTextColorTertiary()),
+                      const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           '${video['students']} students this week',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.w500,
                             color: _getTextColorTertiary(),
                           ),
@@ -532,9 +539,12 @@ class _ContentManagementState extends State<ContentManagement> {
               ),
             ),
           ),
-          const Spacer(),
+
+          const SizedBox(height: 8),
+
+          // Action buttons
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: _getBorderColorLight()),
@@ -549,7 +559,7 @@ class _ContentManagementState extends State<ContentManagement> {
                   onPressed: () => _editContent(video['title']),
                 ),
                 Container(
-                  height: 20,
+                  height: 16,
                   width: 1,
                   color: _getBorderColorLight(),
                 ),
@@ -574,17 +584,17 @@ class _ContentManagementState extends State<ContentManagement> {
     return Expanded(
       child: TextButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, size: 14, color: _getPrimaryColor()),
+        icon: Icon(icon, size: 12, color: _getPrimaryColor()),
         label: Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w500,
             color: _getPrimaryColor(),
           ),
         ),
         style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
           minimumSize: Size.zero,
         ),
       ),
@@ -615,31 +625,31 @@ class _ContentManagementState extends State<ContentManagement> {
 
   // Color helper methods
   Color _getLightColor(Color baseColor) {
-    return baseColor.withAlpha(51); // 20% opacity equivalent
+    return baseColor.withAlpha(51);
   }
 
   Color _getLighterColor(Color baseColor) {
-    return baseColor.withAlpha(26); // 10% opacity equivalent
+    return baseColor.withAlpha(26);
   }
 
   Color _getMediumColor(Color baseColor) {
-    return baseColor.withAlpha(77); // 30% opacity equivalent
+    return baseColor.withAlpha(77);
   }
 
   Color _getTextColorSecondary() {
-    return _getTextColor().withAlpha(153); // 60% opacity equivalent
+    return _getTextColor().withAlpha(153);
   }
 
   Color _getTextColorTertiary() {
-    return _getTextColor().withAlpha(128); // 50% opacity equivalent
+    return _getTextColor().withAlpha(128);
   }
 
   Color _getBackgroundColorLight() {
-    return _getBackgroundColor().withAlpha(128); // 50% opacity equivalent
+    return _getBackgroundColor().withAlpha(128);
   }
 
   Color _getBorderColorLight() {
-    return _getBorderColor().withAlpha(128); // 50% opacity equivalent
+    return _getBorderColor().withAlpha(128);
   }
 
   Color _getBackgroundColor() {
