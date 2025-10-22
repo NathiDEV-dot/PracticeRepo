@@ -8,321 +8,629 @@ class LiveSession extends StatefulWidget {
 }
 
 class _LiveSessionState extends State<LiveSession> {
-  bool _isMuted = true;
-  bool _cameraOn = false;
+  bool _isMuted = false;
+  bool _cameraOn = true;
+  bool _handRaised = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _getBackgroundColor(),
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: _getTextColor()),
-          onPressed: () => Navigator.pop(context),
+      backgroundColor: const Color(0xFF1a2a3a),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1a2a3a), Color(0xFF2c3e50)],
+          ),
         ),
-        title: Text(
-          'Math Help Session',
-          style: TextStyle(color: _getTextColor()),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          Row(
+        child: SafeArea(
+          child: Column(
             children: [
-              Icon(Icons.people, color: _getTextColor()),
-              const SizedBox(width: 4),
-              Text(
-                '25',
-                style: TextStyle(
-                  color: _getTextColor(),
-                  fontWeight: FontWeight.w600,
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.2),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left,
+                          color: Color(0xFF64b5f6)),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Math Help Session',
+                        style: TextStyle(
+                          color: Color(0xFFe3f2fd),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF64b5f6).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.people,
+                              color: Color(0xFFbbdefb), size: 16),
+                          const SizedBox(width: 6),
+                          const Text(
+                            '25',
+                            style: TextStyle(
+                              color: Color(0xFFbbdefb),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
-            ],
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Video Grid
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  // Main Speaker
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const CircleAvatar(
-                            radius: 40,
-                            backgroundColor: Colors.grey,
-                            child: Icon(
-                              Icons.person,
-                              size: 40,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'MR. JOHNSON',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            'Host',
-                            style: TextStyle(
-                              color:
-                                  Colors.white.withAlpha((0.7 * 255).round()),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Student View
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[700],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const CircleAvatar(
-                            radius: 25,
-                            backgroundColor: Colors.grey,
-                            child: Icon(
-                              Icons.person,
-                              size: 25,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'SARAH',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            'You',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color:
-                                  Colors.white.withAlpha((0.7 * 255).round()),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
 
-          // Participants List
-          Container(
-            height: 150,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _getCardColor(),
-              border: Border(top: BorderSide(color: _getBorderColor())),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '👥 Participants (25)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _getTextColor(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: ListView(
-                    children: const [
-                      _ParticipantItem('Mr. Johnson (Host)'),
-                      _ParticipantItem('Sarah (You)'),
-                      _ParticipantItem('Mike'),
-                      _ParticipantItem('Lisa'),
+              // Scrollable Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // Video Container
+                      Row(
+                        children: [
+                          // Main Video
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              height: 180,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF2c3e50),
+                                    Color(0xFF1a2a3a)
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.1)),
+                              ),
+                              child: Stack(
+                                children: [
+                                  Center(
+                                    child: Container(
+                                      width: 70,
+                                      height: 70,
+                                      decoration: const BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            Color(0xFF64b5f6),
+                                            Color(0xFF1976d2)
+                                          ],
+                                        ),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black26,
+                                            blurRadius: 8,
+                                            offset: Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          'MJ',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 10,
+                                    left: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.6),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'MR. JOHNSON',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
+                                      decoration: const BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Color(0xFFff9800),
+                                            Color(0xFFf57c00)
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(4)),
+                                      ),
+                                      child: const Text(
+                                        'HOST',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          // User Video
+                          Expanded(
+                            child: Container(
+                              height: 180,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF2c3e50),
+                                    Color(0xFF1a2a3a)
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.1)),
+                              ),
+                              child: Stack(
+                                children: [
+                                  Center(
+                                    child: Container(
+                                      width: 50,
+                                      height: 50,
+                                      decoration: const BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            Color(0xFF81c784),
+                                            Color(0xFF388e3c)
+                                          ],
+                                        ),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black26,
+                                            blurRadius: 8,
+                                            offset: Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          'S',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 10,
+                                    left: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.6),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'SARAH',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Participants Section
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.people,
+                                  color: Color(0xFFbbdefb), size: 20),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'Participants (25)',
+                                style: TextStyle(
+                                  color: Color(0xFFbbdefb),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 15),
+                          Container(
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: Colors.white.withOpacity(0.05)),
+                            ),
+                            child: Column(
+                              children: [
+                                _buildParticipantItem('MJ', 'Mr. Johnson',
+                                    isHost: true),
+                                _buildParticipantItem('S', 'Sarah',
+                                    isYou: true),
+                                _buildParticipantItem('M', 'Mike'),
+                                _buildParticipantItem('L', 'Lisa'),
+                                _buildParticipantItem('D', 'David'),
+                                _buildParticipantItem('E', 'Emma'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Actions Section
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.settings,
+                                  color: Color(0xFFbbdefb), size: 20),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'ACTIONS',
+                                style: TextStyle(
+                                  color: Color(0xFFbbdefb),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 15),
+                          GridView.count(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.9,
+                            children: [
+                              _buildActionButton(
+                                Icons.back_hand,
+                                'Raise Hand',
+                                isActive: _handRaised,
+                                onTap: () =>
+                                    setState(() => _handRaised = !_handRaised),
+                              ),
+                              _buildActionButton(
+                                Icons.favorite,
+                                'React',
+                                onTap: () {},
+                              ),
+                              _buildActionButton(
+                                _cameraOn ? Icons.videocam : Icons.videocam_off,
+                                'Camera',
+                                isActive: _cameraOn,
+                                onTap: () =>
+                                    setState(() => _cameraOn = !_cameraOn),
+                              ),
+                              _buildActionButton(
+                                _isMuted ? Icons.mic_off : Icons.mic,
+                                'Mute',
+                                isActive: !_isMuted,
+                                onTap: () =>
+                                    setState(() => _isMuted = !_isMuted),
+                              ),
+                              _buildActionButton(
+                                Icons.share,
+                                'Share',
+                                onTap: () {},
+                              ),
+                              _buildActionButton(
+                                Icons.settings,
+                                'Settings',
+                                onTap: () {},
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(
+                          height: 20), // Extra space at bottom for scrolling
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Action Buttons
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: _getCardColor(),
-              border: Border(top: BorderSide(color: _getBorderColor())),
-            ),
-            child: Column(
-              children: [
-                // Main Actions
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildActionButton('✋ Raise Hand', Icons.back_hand),
-                    _buildActionButton('❤️ React', Icons.favorite_border),
-                    _buildToggleButton(
-                      '📹 Camera',
-                      Icons.videocam,
-                      Icons.videocam_off,
-                      _cameraOn,
-                      (value) => setState(() => _cameraOn = value),
-                    ),
-                    _buildToggleButton(
-                      '🎤 Mute',
-                      Icons.mic,
-                      Icons.mic_off,
-                      !_isMuted,
-                      (value) => setState(() => _isMuted = !value),
-                    ),
-                    _buildActionButton('Share', Icons.share),
-                  ],
+              // Footer Actions (Fixed at bottom)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                  ),
                 ),
-                const SizedBox(height: 16),
-
-                // Bottom Actions
-                Row(
+                child: Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.record_voice_over),
-                        label: const Text('Record Session'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _getTextColor(),
-                          side: BorderSide(color: _getBorderColor()),
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFf44336), Color(0xFFd32f2f)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFf44336).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {},
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.fiber_manual_record,
+                                    color: Colors.white, size: 20),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Record Session',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 15),
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.logout),
-                        label: const Text('Leave'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF78909c), Color(0xFF546e7a)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF546e7a).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => Navigator.pop(context),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.exit_to_app,
+                                    color: Colors.white, size: 20),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Leave',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildActionButton(String text, IconData icon) {
-    return ElevatedButton.icon(
-      onPressed: () {},
-      icon: Icon(icon),
-      label: Text(text),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: _getCardColor(),
-        foregroundColor: _getTextColor(),
-        side: BorderSide(color: _getBorderColor()),
-      ),
-    );
-  }
-
-  Widget _buildToggleButton(
-    String text,
-    IconData activeIcon,
-    IconData inactiveIcon,
-    bool isActive,
-    ValueChanged<bool> onChanged,
-  ) {
-    return ElevatedButton.icon(
-      onPressed: () => onChanged(!isActive),
-      icon: Icon(isActive ? activeIcon : inactiveIcon),
-      label: Text(text),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isActive ? const Color(0xFF4CAF50) : _getCardColor(),
-        foregroundColor: isActive ? Colors.white : _getTextColor(),
-        side: BorderSide(color: _getBorderColor()),
-      ),
-    );
-  }
-
-  Color _getBackgroundColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF0F0F1E)
-        : const Color(0xFFF8FAFF);
-  }
-
-  Color _getTextColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF2D3748);
-  }
-
-  Color _getCardColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E1E2E)
-        : Colors.white;
-  }
-
-  Color _getBorderColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF333344)
-        : const Color(0xFFE2E8F0);
-  }
-}
-
-class _ParticipantItem extends StatelessWidget {
-  const _ParticipantItem(this.name);
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF2D3748);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+  Widget _buildParticipantItem(String avatar, String name,
+      {bool isHost = false, bool isYou = false}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          const Icon(Icons.circle, color: Colors.green, size: 8),
-          const SizedBox(width: 8),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF7986cb), Color(0xFF3949ab)],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                avatar,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               name,
-              style: TextStyle(fontSize: 14, color: textColor),
+              style: const TextStyle(
+                color: Color(0xFFe3f2fd),
+                fontSize: 15,
+              ),
             ),
           ),
+          if (isHost)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFff9800).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Host',
+                style: TextStyle(
+                  color: Color(0xFFffb74d),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          if (isYou)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF81c784).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'You',
+                style: TextStyle(
+                  color: Color(0xFF81c784),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(IconData icon, String label,
+      {bool isActive = false, VoidCallback? onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: isActive
+                    ? const Color(0xFF4CAF50)
+                    : const Color(0xFFe3f2fd),
+                size: 22,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isActive
+                      ? const Color(0xFF4CAF50)
+                      : const Color(0xFFe3f2fd),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
