@@ -10,27 +10,62 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   int _currentIndex = 0;
 
+  // Custom icons for better visual communication
+  final Map<String, IconData> _customIcons = {
+    'home': Icons.dashboard,
+    'live': Icons.live_tv,
+    'assignments': Icons.assignment_turned_in,
+    'profile': Icons.account_circle,
+    'math': Icons.calculate,
+    'science': Icons.science,
+    'progress': Icons.trending_up,
+    'notifications': Icons.notifications_none,
+    'settings': Icons.settings,
+    'video': Icons.play_circle_filled,
+    'record': Icons.video_call,
+    'time': Icons.access_time,
+    'calendar': Icons.calendar_today,
+  };
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _getBackgroundColor(),
       appBar: AppBar(
-        title: const Text('Student Dashboard'),
+        title: Text(
+          'My Learning',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: _getTextColor(),
+          ),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: false,
         actions: [
-          IconButton(
-            icon: Icon(Icons.notifications, color: _getTextColor()),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: Icon(Icons.settings, color: _getTextColor()),
-            onPressed: () {},
-          ),
+          _buildIconButton(_customIcons['notifications']!),
+          _buildIconButton(_customIcons['settings']!),
         ],
       ),
       body: _buildBody(),
       bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildIconButton(IconData icon) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      child: IconButton(
+        icon: Icon(icon, color: _getTextColor().withOpacity(0.7)),
+        onPressed: () {},
+        style: IconButton.styleFrom(
+          backgroundColor: _getCardColor().withOpacity(0.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
     );
   }
 
@@ -55,149 +90,203 @@ class _StudentDashboardState extends State<StudentDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Header
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 25,
-                backgroundColor: const Color(0xFF4CAF50)
-                    .withAlpha(26), // 0.1 opacity = 26 alpha
-                child: const Icon(Icons.person, color: Color(0xFF4CAF50)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sarah (Student)',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: _getTextColor(),
-                      ),
-                    ),
-                    Text(
-                      'Grade 10 • Progress: 85% Complete',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: _getSecondaryTextColor(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          // Welcome Section
+          _buildWelcomeSection(),
           const SizedBox(height: 24),
 
-          // Progress Bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _getCardColor(),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _getBorderColor()),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Overall Progress',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: _getTextColor(),
-                      ),
-                    ),
-                    const Text(
-                      '85%',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF4CAF50),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: 0.85,
-                    backgroundColor: _getBorderColor(),
-                    color: const Color(0xFF4CAF50),
-                    minHeight: 8,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Progress Section
+          _buildProgressSection(),
           const SizedBox(height: 24),
-
-          // My Learning Section
-          Text(
-            '📚 MY LEARNING',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: _getTextColor(),
-            ),
-          ),
-          const SizedBox(height: 16),
 
           // Today's Activities
-          Text(
-            '🎯 TODAY\'S ACTIVITIES:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: _getTextColor(),
-            ),
-          ),
-          const SizedBox(height: 12),
+          _buildSectionHeader('Today\'s Activities'),
+          const SizedBox(height: 16),
           _buildActivityCard(
-            '📹 Math: Algebra Basics',
-            'Due: Today',
-            '⏱️ 15 min',
-            '▶️ Watch Now',
+            'Algebra Basics',
+            'Math',
+            Icons.calculate,
+            '15 min',
+            'Watch Now',
             const Color(0xFF2196F3),
             onTap: () => Navigator.pushNamed(context, '/student/lesson'),
           ),
           const SizedBox(height: 12),
           _buildActivityCard(
-            '📝 Science Lab Report',
-            'Due: Tomorrow',
-            '⏱️ 30 min',
-            '🎥 Record',
+            'Science Lab Report',
+            'Science',
+            Icons.science,
+            '30 min',
+            'Record Video',
             const Color(0xFFFF9800),
             onTap: () => Navigator.pushNamed(context, '/student/homework'),
           ),
           const SizedBox(height: 24),
 
-          // Live Sessions
-          Text(
-            '📅 LIVE SESSIONS:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: _getTextColor(),
+          // Upcoming Sessions
+          _buildSectionHeader('Live Sessions Today'),
+          const SizedBox(height: 16),
+          _buildSessionItem('Math Help Session', '3:00 PM', Icons.calculate),
+          _buildSessionItem('Science Review', '4:30 PM', Icons.science),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWelcomeSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.school,
+              color: const Color(0xFF4CAF50),
+              size: 24,
             ),
           ),
-          const SizedBox(height: 12),
-          _buildLiveSessionItem('Math Help Session - 3:00 PM'),
-          _buildLiveSessionItem('Science Review - 4:30 PM'),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome Back!',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _getTextColor(),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Grade 10 • 85% Complete',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _getTextColor().withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProgressSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.trending_up,
+                color: const Color(0xFF4CAF50),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Learning Progress',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: _getTextColor(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Stack(
+            children: [
+              Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _getBorderColor(),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Container(
+                height: 8,
+                width: MediaQuery.of(context).size.width * 0.85,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4CAF50),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Overall Progress',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: _getTextColor().withOpacity(0.6),
+                ),
+              ),
+              Text(
+                '85%',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF4CAF50),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title.toUpperCase(),
+      style: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: _getTextColor().withOpacity(0.5),
+        letterSpacing: 1.2,
       ),
     );
   }
 
   Widget _buildActivityCard(
     String title,
-    String due,
+    String subject,
+    IconData icon,
     String duration,
     String action,
     Color color, {
@@ -209,66 +298,74 @@ class _StudentDashboardState extends State<StudentDashboard> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: _getCardColor(),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _getBorderColor()),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withAlpha(26), // 0.1 opacity = 26 alpha
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    title.split(' ')[0], // Emoji
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: _getTextColor(),
-                        ),
-                      ),
-                      Text(
-                        due,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: _getSecondaryTextColor(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _getTextColor(),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subject,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _getTextColor().withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  duration,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: _getTertiaryTextColor(),
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: _getTextColor().withOpacity(0.4),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      duration,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _getTextColor().withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: color,
                     borderRadius: BorderRadius.circular(20),
@@ -276,7 +373,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   child: Text(
                     action,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
@@ -290,29 +387,70 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  Widget _buildLiveSessionItem(String session) {
+  Widget _buildSessionItem(String title, String time, IconData icon) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _getCardColor(),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _getBorderColor()),
       ),
       child: Row(
         children: [
-          const Icon(Icons.circle, color: Colors.green, size: 8),
-          const SizedBox(width: 12),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
+          ),
+          const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              session,
-              style: TextStyle(fontSize: 14, color: _getTextColor()),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _getTextColor(),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _getTextColor().withOpacity(0.6),
+                  ),
+                ),
+              ],
             ),
           ),
-          Icon(
-            Icons.arrow_forward_ios,
-            color: _getQuaternaryTextColor(),
-            size: 16,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.circle, color: Colors.green, size: 8),
+                const SizedBox(width: 6),
+                Text(
+                  'LIVE',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF4CAF50),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -320,107 +458,102 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildLiveSessionsTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.video_camera_front,
-            size: 64,
-            color: _getTertiaryTextColor(),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Live Sessions',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: _getTextColor(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Join scheduled live sessions with educators',
-            style: TextStyle(color: _getSecondaryTextColor()),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.pushNamed(context, '/student/live-session'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('View Live Sessions'),
-          ),
-        ],
-      ),
+    return _buildPlaceholderTab(
+      Icons.live_tv,
+      'Live Sessions',
+      'Join scheduled sessions with educators',
+      'View Schedule',
+      () => Navigator.pushNamed(context, '/student/live-session'),
     );
   }
 
   Widget _buildHomeworkTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.assignment,
-            size: 64,
-            color: _getTertiaryTextColor(),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Homework & Assignments',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: _getTextColor(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'View and submit your assignments',
-            style: TextStyle(color: _getSecondaryTextColor()),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => Navigator.pushNamed(context, '/student/homework'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('View Assignments'),
-          ),
-        ],
-      ),
+    return _buildPlaceholderTab(
+      Icons.assignment_turned_in,
+      'Assignments',
+      'View and submit your work',
+      'View Assignments',
+      () => Navigator.pushNamed(context, '/student/homework'),
     );
   }
 
   Widget _buildProfileTab() {
+    return _buildPlaceholderTab(
+      Icons.account_circle,
+      'Profile',
+      'Manage your account and progress',
+      'Edit Profile',
+      () {},
+    );
+  }
+
+  Widget _buildPlaceholderTab(
+    IconData icon,
+    String title,
+    String subtitle,
+    String buttonText,
+    VoidCallback onPressed,
+  ) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.person,
-            size: 64,
-            color: _getTertiaryTextColor(),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Student Profile',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: _getTextColor(),
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: _getCardColor(),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                size: 48,
+                color: _getTextColor().withOpacity(0.6),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Manage your account and settings',
-            style: TextStyle(color: _getSecondaryTextColor()),
-          ),
-        ],
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: _getTextColor(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: _getTextColor().withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CAF50),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+              ),
+              child: Text(buttonText),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -432,18 +565,26 @@ class _StudentDashboardState extends State<StudentDashboard> {
       type: BottomNavigationBarType.fixed,
       backgroundColor: _getCardColor(),
       selectedItemColor: const Color(0xFF4CAF50),
-      unselectedItemColor: _getQuaternaryTextColor(),
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+      unselectedItemColor: _getTextColor().withOpacity(0.5),
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.video_camera_front),
+          icon: Icon(_customIcons['home']!),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(_customIcons['live']!),
           label: 'Live',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.assignment),
-          label: 'Homework',
+          icon: Icon(_customIcons['assignments']!),
+          label: 'Assignments',
         ),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        BottomNavigationBarItem(
+          icon: Icon(_customIcons['profile']!),
+          label: 'Profile',
+        ),
       ],
     );
   }
@@ -470,29 +611,5 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
-  }
-
-  // Method for secondary text
-  Color _getSecondaryTextColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFFB3B3B3) // Equivalent to white.withOpacity(0.7)
-        : const Color(
-            0xFF666666); // Equivalent to Color(0xFF2D3748).withOpacity(0.7)
-  }
-
-  // Method for tertiary text
-  Color _getTertiaryTextColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF999999) // Equivalent to white.withOpacity(0.6)
-        : const Color(
-            0xFF888888); // Equivalent to Color(0xFF2D3748).withOpacity(0.6)
-  }
-
-  // Method for quaternary text
-  Color _getQuaternaryTextColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF808080) // Equivalent to white.withOpacity(0.5)
-        : const Color(
-            0xFF999999); // Equivalent to Color(0xFF2D3748).withOpacity(0.5)
   }
 }
