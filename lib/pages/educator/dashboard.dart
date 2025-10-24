@@ -1,9 +1,12 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'content_management.dart';
 import 'live_sessions_manage.dart';
 import 'review_submissions.dart';
+import 'package:signsync_academy/core/services/_service.dart';
+import 'lib/core/services/dashboard_service.dart'; // Import your service
 
 class EducatorDashboard extends StatefulWidget {
   const EducatorDashboard({super.key});
@@ -14,6 +17,9 @@ class EducatorDashboard extends StatefulWidget {
 
 class _EducatorDashboardState extends State<EducatorDashboard> {
   int _currentIndex = 0;
+  Map<String, dynamic>? _educatorData;
+  bool _isLoading = true;
+  final DashboardService _dashboardService = DashboardService();
 
   // Professional color palette
   final Color _primaryColor = const Color(0xFF4361EE);
@@ -22,6 +28,28 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   final Color _successColor = const Color(0xFF4ADE80);
   final Color _warningColor = const Color(0xFFF59E0B);
   final Color _errorColor = const Color(0xFFEF4444);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEducatorData();
+  }
+
+  Future<void> _loadEducatorData() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final data = await _dashboardService.getEducatorData(user.id);
+        setState(() {
+          _educatorData = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading educator data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,12 +134,11 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
   Widget _buildHomeTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 16, vertical: 16), // Reduced horizontal padding
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Header with improved design
+          // Welcome Header with real data
           _buildWelcomeHeader(),
           const SizedBox(height: 24),
 
@@ -119,9 +146,13 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           _buildSectionHeader('Dashboard Overview'),
           const SizedBox(height: 16),
 
-          // Stats Cards Grid
+          // Stats Cards Grid with real data
           _buildStatsGrid(),
           const SizedBox(height: 24),
+
+          // Classes Overview with real data
+          if (_educatorData != null && !_isLoading) _buildClassesOverview(),
+          if (_educatorData != null && !_isLoading) const SizedBox(height: 24),
 
           // Quick Actions
           _buildSectionHeader('Quick Actions'),
@@ -133,15 +164,27 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           _buildSectionHeader('Recent Activity'),
           const SizedBox(height: 16),
           _buildRecentActivity(),
-          const SizedBox(height: 20), // Extra bottom padding
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
   Widget _buildWelcomeHeader() {
+    if (_isLoading) {
+      return _buildLoadingWelcomeHeader();
+    }
+
+    if (_educatorData == null) {
+      return _buildErrorWelcomeHeader();
+    }
+
+    final educator = _educatorData!['educator'];
+    final grades = _educatorData!['grades_taught'] as List<String>;
+    final subjects = _educatorData!['subjects'] as List<String>;
+
     return Container(
-      width: double.infinity, // Ensure full width
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -153,12 +196,11 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _getBorderColor(),
-        ),
+        border: Border.all(color: _getBorderColor()),
       ),
       child: Row(
         children: [
+          // Profile avatar
           Container(
             width: 60,
             height: 60,
@@ -178,7 +220,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dr. John Doe',
+                  '${educator['first_name']} ${educator['last_name']}',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -188,7 +230,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Mathematics Department • Grade 10-12',
+                  '${subjects.length} ${subjects.length == 1 ? 'Subject' : 'Subjects'} • ${grades.join(", ")}',
                   style: TextStyle(
                     fontSize: 14,
                     color: _getSecondaryTextColor(),
@@ -205,7 +247,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                     border: Border.all(color: _getSuccessBorderColor()),
                   ),
                   child: Text(
-                    'Last login: Today, 08:45 AM',
+                    'SASL Teaching Specialist',
                     style: TextStyle(
                       fontSize: 12,
                       color: _successColor,
@@ -214,6 +256,91 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingWelcomeHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _getBorderColor()),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: _getHintColor().withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 150,
+                  height: 20,
+                  color: _getHintColor().withOpacity(0.3),
+                  margin: const EdgeInsets.only(bottom: 8),
+                ),
+                Container(
+                  width: 200,
+                  height: 16,
+                  color: _getHintColor().withOpacity(0.3),
+                  margin: const EdgeInsets.only(bottom: 12),
+                ),
+                Container(
+                  width: 120,
+                  height: 24,
+                  color: _getHintColor().withOpacity(0.3),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorWelcomeHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _errorColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: _errorColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.error_outline, color: _errorColor, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              'Unable to load profile data',
+              style: TextStyle(
+                fontSize: 16,
+                color: _getTextColor(),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -234,10 +361,15 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   }
 
   Widget _buildStatsGrid() {
+    if (_isLoading || _educatorData == null) {
+      return _buildLoadingStats();
+    }
+
+    final stats = _educatorData!['stats'];
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cardWidth =
-            (constraints.maxWidth - 12) / 2; // Calculate responsive width
+        final cardWidth = (constraints.maxWidth - 12) / 2;
         return GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -248,29 +380,29 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           children: [
             _buildStatCard(
               Icons.video_library_rounded,
-              '12',
-              'Video Lessons',
+              '${stats['published_lessons']}',
+              'Published Lessons',
               const [Color(0xFF4361EE), Color(0xFF3A0CA3)],
               cardWidth,
             ),
             _buildStatCard(
               Icons.assignment_rounded,
-              '45',
-              'Assignments',
+              '${stats['total_lessons']}',
+              'Total Lessons',
               const [Color(0xFF4ADE80), Color(0xFF16A34A)],
               cardWidth,
             ),
             _buildStatCard(
               Icons.people_alt_rounded,
-              '25',
-              'Active Students',
+              '${stats['total_students']}',
+              'Total Students',
               const [Color(0xFFF59E0B), Color(0xFFD97706)],
               cardWidth,
             ),
             _buildStatCard(
-              Icons.schedule_rounded,
-              '8',
-              'Live Sessions',
+              Icons.school_rounded,
+              '${stats['total_classes']}',
+              'Total Classes',
               const [Color(0xFF4CC9F0), Color(0xFF0891B2)],
               cardWidth,
             ),
@@ -283,7 +415,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   Widget _buildStatCard(IconData icon, String value, String label,
       List<Color> gradientColors, double width) {
     return Container(
-      width: width, // Use calculated width
+      width: width,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: _getCardColor(),
@@ -347,6 +479,120 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
     );
   }
 
+  Widget _buildLoadingStats() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.1,
+      children: List.generate(
+          4,
+          (index) => Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: _getCardColor(),
+                ),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: _primaryColor,
+                    strokeWidth: 2,
+                  ),
+                ),
+              )),
+    );
+  }
+
+  Widget _buildClassesOverview() {
+    final classesByGrade =
+        _educatorData!['classes_by_grade'] as Map<String, dynamic>;
+
+    if (classesByGrade.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _getCardColor(),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _getBorderColor()),
+        ),
+        child: Center(
+          child: Text(
+            'No classes assigned yet',
+            style: TextStyle(
+              color: _getSecondaryTextColor(),
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Classes & Students'),
+        const SizedBox(height: 16),
+        ...classesByGrade.keys
+            .map((grade) => _buildGradeClassCard(grade, classesByGrade[grade]))
+            .toList(),
+      ],
+    );
+  }
+
+  Widget _buildGradeClassCard(String grade, List<dynamic> classes) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _getBorderColor()),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Grade $grade',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: _getTextColor(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: classes
+                  .map<Widget>((classData) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border:
+                              Border.all(color: _primaryColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          '${classData['subject']} (${classData['student_count']})',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _primaryColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickActions() {
     final actions = [
       _QuickAction(
@@ -382,7 +628,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
   Widget _buildQuickActionItem(_QuickAction action) {
     return Container(
-      width: double.infinity, // Ensure full width
+      width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: _getCardColor(),
@@ -489,7 +735,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
   Widget _buildActivityItem(_ActivityItem activity) {
     return Container(
-      width: double.infinity, // Ensure full width
+      width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: _getCardColor(),
@@ -640,11 +886,11 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
     );
   }
 
-  // Fixed color methods
+  // Color methods (unchanged from your original)
   Color _getBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF0F0F1E) // Darker background for better contrast
-        : const Color(0xFFF5F7FA); // Lighter background for better contrast
+        ? const Color(0xFF0F0F1E)
+        : const Color(0xFFF5F7FA);
   }
 
   Color _getTextColor() {
@@ -667,7 +913,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
   Color _getCardColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E1E2E) // Darker card for better contrast
+        ? const Color(0xFF1E1E2E)
         : Colors.white;
   }
 
@@ -679,8 +925,8 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
   Color _getShadowColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? Colors.black.withOpacity(0.4) // Darker shadows for dark mode
-        : Colors.black.withOpacity(0.08); // Lighter shadows for light mode
+        ? Colors.black.withOpacity(0.4)
+        : Colors.black.withOpacity(0.08);
   }
 
   Color _getWelcomeGradientStart() {
