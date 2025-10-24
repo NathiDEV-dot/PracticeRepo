@@ -1,6 +1,9 @@
+// lib/pages/educator/auth_screen.dart
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:signsync_academy/core/services/auth_service.dart';
 
 class EducatorAuthScreen extends StatefulWidget {
   const EducatorAuthScreen({super.key});
@@ -11,12 +14,103 @@ class EducatorAuthScreen extends StatefulWidget {
 
 class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _surnameController = TextEditingController();
-  final _gradesController = TextEditingController();
-  final _subjectsController = TextEditingController();
-  final _schoolController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+  bool _isLoginMode = true;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  void _toggleAuthMode() {
+    setState(() {
+      _isLoginMode = !_isLoginMode;
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+      _obscurePassword = true;
+      _obscureConfirmPassword = true;
+    });
+  }
+
+  void _togglePasswordVisibility() {
+    setState(() {
+      _obscurePassword = !_obscurePassword;
+    });
+  }
+
+  void _toggleConfirmPasswordVisibility() {
+    setState(() {
+      _obscureConfirmPassword = !_obscureConfirmPassword;
+    });
+  }
+
+  void _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        AuthResponse? authResponse;
+
+        if (_isLoginMode) {
+          // Login existing educator
+          authResponse = await _authService.educatorLogin(
+            _emailController.text.trim(),
+            _passwordController.text,
+          );
+        } else {
+          // Register new educator
+          authResponse = await _authService.educatorSignUp(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            confirmPassword: _confirmPasswordController.text,
+          );
+        }
+
+        if (authResponse != null && authResponse.user != null) {
+          _showSuccess(_isLoginMode
+              ? 'Welcome back to SignSync Academy!'
+              : 'Your educator account has been created successfully!');
+
+          // Navigate to dashboard after a brief delay
+          await Future.delayed(const Duration(seconds: 1));
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/educator/dashboard');
+          }
+        }
+      } catch (e) {
+        _showError(e.toString().replaceAll('Exception: ', ''));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,9 +138,9 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Educator Registration',
-                      style: TextStyle(
+                    Text(
+                      _isLoginMode ? 'Educator Login' : 'Educator Registration',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -78,72 +172,123 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
                         children: [
                           _buildHeader(),
                           const SizedBox(height: 32),
-                          _buildTextFieldWithIcon(
-                            controller: _nameController,
-                            label: 'First Name',
-                            hintText: 'Enter your first name',
-                            icon: Icons.person,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter your first name'
-                                : null,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildTextFieldWithIcon(
-                            controller: _surnameController,
-                            label: 'Last Name',
-                            hintText: 'Enter your last name',
-                            icon: Icons.person_outline,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter your last name'
-                                : null,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildTextFieldWithIcon(
-                            controller: _gradesController,
-                            label: 'Grades You Teach',
-                            hintText: 'e.g., Grade 4-7, Grade 8-9',
-                            icon: Icons.school,
-                            validator: (value) =>
-                                value!.isEmpty ? 'Please enter grades' : null,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildTextFieldWithIcon(
-                            controller: _subjectsController,
-                            label: 'Subjects You Teach',
-                            hintText: 'e.g., English, Mathematics, SASL',
-                            icon: Icons.menu_book,
-                            validator: (value) =>
-                                value!.isEmpty ? 'Please enter subjects' : null,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildTextFieldWithIcon(
-                            controller: _schoolController,
-                            label: 'School Name',
-                            hintText: 'Enter your school name',
-                            icon: Icons.business,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter school name'
-                                : null,
-                          ),
-                          const SizedBox(height: 20),
+
+                          // Email Field
                           _buildTextFieldWithIcon(
                             controller: _emailController,
                             label: 'School Email',
                             hintText: 'your.name@school.edu.za',
                             icon: Icons.email,
                             keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
                             validator: (value) {
                               if (value!.isEmpty) {
                                 return 'Please enter school email';
                               }
-                              if (!value.contains('@')) {
-                                return 'Please enter a valid email';
+                              if (!value.contains('@') ||
+                                  !value.contains('.')) {
+                                return 'Please enter a valid email address';
                               }
                               return null;
                             },
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 20),
+
+                          // Password Field
+                          _buildTextFieldWithIcon(
+                            controller: _passwordController,
+                            label: 'Password',
+                            hintText: 'Enter your password',
+                            icon: Icons.lock,
+                            isPassword: _obscurePassword,
+                            textInputAction: _isLoginMode
+                                ? TextInputAction.done
+                                : TextInputAction.next,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: _getIconColor(),
+                              ),
+                              onPressed: _togglePasswordVisibility,
+                            ),
+                            onFieldSubmitted: (_) {
+                              if (_isLoginMode) {
+                                _submitForm();
+                              }
+                            },
+                            validator: (value) {
+                              if (value!.isEmpty) {
+                                return 'Please enter password';
+                              }
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Confirm Password Field (only for signup)
+                          if (!_isLoginMode)
+                            _buildTextFieldWithIcon(
+                              controller: _confirmPasswordController,
+                              label: 'Confirm Password',
+                              hintText: 'Confirm your password',
+                              icon: Icons.lock_outline,
+                              isPassword: _obscureConfirmPassword,
+                              textInputAction: TextInputAction.done,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: _getIconColor(),
+                                ),
+                                onPressed: _toggleConfirmPasswordVisibility,
+                              ),
+                              onFieldSubmitted: (_) => _submitForm(),
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return 'Please confirm password';
+                                }
+                                if (value != _passwordController.text) {
+                                  return 'Passwords do not match';
+                                }
+                                return null;
+                              },
+                            ),
+
+                          if (!_isLoginMode) const SizedBox(height: 20),
+
+                          // Info Text
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Text(
+                              _isLoginMode
+                                  ? 'Use your school email to access your educator account'
+                                  : 'Your email must be pre-verified in our school records',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _getTextColor().withOpacity(0.7),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 30),
+
+                          // Submit Button
                           _buildSubmitButton(),
+                          const SizedBox(height: 20),
+
+                          // Toggle Auth Mode
+                          _buildToggleAuthMode(),
+
+                          // Password reset temporarily removed
+                          // Will be implemented in future update
                         ],
                       ),
                     ),
@@ -183,7 +328,7 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
         ),
         const SizedBox(height: 20),
         Text(
-          'Educator Registration',
+          _isLoginMode ? 'Educator Login' : 'Educator Registration',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -192,7 +337,9 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Create your professional account',
+          _isLoginMode
+              ? 'Welcome back to your teaching dashboard'
+              : 'Create your professional educator account',
           style: TextStyle(
             fontSize: 16,
             color: _getTextColor().withOpacity(0.7),
@@ -209,6 +356,10 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
     required IconData icon,
     required String? Function(String?) validator,
     TextInputType keyboardType = TextInputType.text,
+    TextInputAction textInputAction = TextInputAction.next,
+    bool isPassword = false,
+    Widget? suffixIcon,
+    void Function(String)? onFieldSubmitted,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,11 +387,15 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
           child: TextFormField(
             controller: controller,
             keyboardType: keyboardType,
+            textInputAction: textInputAction,
+            obscureText: isPassword,
             validator: validator,
+            onFieldSubmitted: onFieldSubmitted,
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(color: _getHintColor()),
               prefixIcon: Icon(icon, color: _getIconColor()),
+              suffixIcon: suffixIcon,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: _getBorderColor()),
@@ -255,8 +410,7 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
                     const BorderSide(color: Color(0xFF667EEA), width: 2),
               ),
               filled: true,
-              fillColor:
-                  _getTextFieldBackgroundColor(), // FIXED: Different background for text fields
+              fillColor: _getTextFieldBackgroundColor(),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
@@ -281,7 +435,7 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: _submitForm,
+        onPressed: _isLoading ? null : _submitForm,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF667EEA),
           foregroundColor: Colors.white,
@@ -291,112 +445,57 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
           ),
           elevation: 0,
         ),
-        child: const Text(
-          'Create Educator Account',
+        child: _isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                _isLoginMode ? 'Sign In' : 'Create Account',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildToggleAuthMode() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          _isLoginMode ? "Don't have an account?" : 'Already have an account?',
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            color: _getTextColor().withOpacity(0.7),
           ),
         ),
-      ),
-    );
-  }
-
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      // Show success dialog
-      showDialog(
-        context: context,
-        builder: (context) => _buildSuccessDialog(),
-      );
-    }
-  }
-
-  Widget _buildSuccessDialog() {
-    return Dialog(
-      backgroundColor: _getCardColor(),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFF4CAF50).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle,
-                  color: Color(0xFF4CAF50), size: 60),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: _isLoading ? null : _toggleAuthMode,
+          child: Text(
+            _isLoginMode ? 'Sign Up' : 'Sign In',
+            style: const TextStyle(
+              color: Color(0xFF667EEA),
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.underline,
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Registration Successful!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: _getTextColor(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Your educator account has been created successfully. You can now access all teaching resources.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: _getTextColor().withOpacity(0.7),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF667EEA).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pushReplacementNamed(
-                      context, '/educator/dashboard');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF667EEA),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Continue to Dashboard'),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
-  // FIXED: Color methods for better contrast
-  Color _getBackgroundColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E1E2E)
-        : const Color(0xFFF7FAFC);
-  }
-
+  // Color methods
   Color _getTextFieldBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF2D2D3E) // Darker than card for contrast
-        : const Color(
-            0xFFF0F4F8); // Lighter shade for contrast against white card
+        ? const Color(0xFF2D2D3E)
+        : const Color(0xFFF0F4F8);
   }
 
   Color _getTextColor() {
@@ -431,12 +530,9 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _surnameController.dispose();
-    _gradesController.dispose();
-    _subjectsController.dispose();
-    _schoolController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 }

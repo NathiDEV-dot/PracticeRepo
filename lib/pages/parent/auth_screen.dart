@@ -1,6 +1,9 @@
+// lib/pages/parent/auth_screen.dart
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:signsync_academy/core/services/auth_service.dart';
 
 class ParentAuthScreen extends StatefulWidget {
   const ParentAuthScreen({super.key});
@@ -14,26 +17,112 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
   final _nameController = TextEditingController();
   final _surnameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _studentCodeController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _childNameController = TextEditingController();
-  final _childAgeController = TextEditingController();
-  String? _childGrade;
 
-  final List<String> _grades = [
-    'Grade R',
-    'Grade 1',
-    'Grade 2',
-    'Grade 3',
-    'Grade 4',
-    'Grade 5',
-    'Grade 6',
-    'Grade 7',
-    'Grade 8',
-    'Grade 9',
-    'Grade 10',
-    'Grade 11',
-    'Grade 12'
-  ];
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+  bool _isLoginMode = true;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  void _toggleAuthMode() {
+    setState(() {
+      _isLoginMode = !_isLoginMode;
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+      _studentCodeController.clear();
+      _obscurePassword = true;
+      _obscureConfirmPassword = true;
+    });
+  }
+
+  void _togglePasswordVisibility() {
+    setState(() {
+      _obscurePassword = !_obscurePassword;
+    });
+  }
+
+  void _toggleConfirmPasswordVisibility() {
+    setState(() {
+      _obscureConfirmPassword = !_obscureConfirmPassword;
+    });
+  }
+
+  void _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        AuthResponse? authResponse;
+
+        if (_isLoginMode) {
+          // Login existing parent
+          authResponse = await _authService.parentLogin(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            studentCode: _studentCodeController.text.trim().toUpperCase(),
+          );
+        } else {
+          // Register new parent
+          authResponse = await _authService.parentSignUp(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            confirmPassword: _confirmPasswordController.text,
+            studentCode: _studentCodeController.text.trim().toUpperCase(),
+            firstName: _nameController.text.trim(),
+            lastName: _surnameController.text.trim(),
+            phoneNumber: _phoneController.text.trim().isNotEmpty
+                ? _phoneController.text.trim()
+                : null,
+          );
+        }
+
+        if (authResponse != null && authResponse.user != null) {
+          _showSuccess(_isLoginMode
+              ? 'Welcome back! Connected to your child\'s account.'
+              : 'Parent account created successfully! Linked to your child.');
+
+          // Navigate to dashboard after a brief delay
+          await Future.delayed(const Duration(seconds: 1));
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/parent/dashboard');
+          }
+        }
+      } catch (e) {
+        _showError(e.toString().replaceAll('Exception: ', ''));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,9 +150,9 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Parent Registration',
-                      style: TextStyle(
+                    Text(
+                      _isLoginMode ? 'Parent Login' : 'Parent Registration',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -96,92 +185,182 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                           _buildHeader(),
                           const SizedBox(height: 32),
 
-                          // Parent Information
-                          _buildSectionHeader('Parent Information'),
-                          const SizedBox(height: 20),
+                          // Student Code Field (for both login and signup)
                           _buildTextFieldWithIcon(
-                            controller: _nameController,
-                            label: 'First Name',
-                            hintText: 'Enter your first name',
-                            icon: Icons.person,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter your first name'
-                                : null,
+                            controller: _studentCodeController,
+                            label: "Child's Student Code",
+                            hintText: 'TOD001, TOD002, etc.',
+                            icon: Icons.code_rounded,
+                            textInputAction: TextInputAction.next,
+                            validator: (value) {
+                              if (value!.isEmpty) {
+                                return 'Please enter your child\'s student code';
+                              }
+                              if (!value.toUpperCase().startsWith('TOD')) {
+                                return 'Please enter a valid student code (starts with TOD)';
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 20),
-                          _buildTextFieldWithIcon(
-                            controller: _surnameController,
-                            label: 'Last Name',
-                            hintText: 'Enter your last name',
-                            icon: Icons.person_outline,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter your last name'
-                                : null,
-                          ),
-                          const SizedBox(height: 20),
+
+                          // Parent Information (only for signup)
+                          if (!_isLoginMode) ...[
+                            _buildSectionHeader('Parent Information'),
+                            const SizedBox(height: 20),
+                            _buildTextFieldWithIcon(
+                              controller: _nameController,
+                              label: 'First Name',
+                              hintText: 'Enter your first name',
+                              icon: Icons.person,
+                              textInputAction: TextInputAction.next,
+                              validator: (value) => value!.isEmpty
+                                  ? 'Please enter your first name'
+                                  : null,
+                            ),
+                            const SizedBox(height: 20),
+                            _buildTextFieldWithIcon(
+                              controller: _surnameController,
+                              label: 'Last Name',
+                              hintText: 'Enter your last name',
+                              icon: Icons.person_outline,
+                              textInputAction: TextInputAction.next,
+                              validator: (value) => value!.isEmpty
+                                  ? 'Please enter your last name'
+                                  : null,
+                            ),
+                            const SizedBox(height: 20),
+                            _buildTextFieldWithIcon(
+                              controller: _phoneController,
+                              label: 'Phone Number (Optional)',
+                              hintText: '+27 12 345 6789',
+                              icon: Icons.phone,
+                              keyboardType: TextInputType.phone,
+                              textInputAction: TextInputAction.next,
+                              validator: (value) => null, // Optional field
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // Email Field
                           _buildTextFieldWithIcon(
                             controller: _emailController,
                             label: 'Email Address',
                             hintText: 'your.email@example.com',
                             icon: Icons.email,
                             keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
                             validator: (value) {
                               if (value!.isEmpty) {
                                 return 'Please enter email address';
                               }
-                              if (!value.contains('@')) {
-                                return 'Please enter a valid email';
+                              if (!value.contains('@') ||
+                                  !value.contains('.')) {
+                                return 'Please enter a valid email address';
                               }
                               return null;
                             },
                           ),
                           const SizedBox(height: 20),
-                          _buildTextFieldWithIcon(
-                            controller: _phoneController,
-                            label: 'Phone Number',
-                            hintText: '+27 12 345 6789',
-                            icon: Icons.phone,
-                            keyboardType: TextInputType.phone,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter phone number'
-                                : null,
-                          ),
 
-                          const SizedBox(height: 32),
-
-                          // Child Information
-                          _buildSectionHeader('Child Information'),
-                          const SizedBox(height: 20),
+                          // Password Field
                           _buildTextFieldWithIcon(
-                            controller: _childNameController,
-                            label: "Child's Name",
-                            hintText: "Enter your child's name",
-                            icon: Icons.child_care,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter child\'s name'
-                                : null,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildTextFieldWithIcon(
-                            controller: _childAgeController,
-                            label: "Child's Age",
-                            hintText: 'Enter age',
-                            icon: Icons.cake,
-                            keyboardType: TextInputType.number,
+                            controller: _passwordController,
+                            label: 'Password',
+                            hintText: 'Enter your password',
+                            icon: Icons.lock,
+                            isPassword: _obscurePassword,
+                            textInputAction: _isLoginMode
+                                ? TextInputAction.done
+                                : TextInputAction.next,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: _getIconColor(),
+                              ),
+                              onPressed: _togglePasswordVisibility,
+                            ),
+                            onFieldSubmitted: (_) {
+                              if (_isLoginMode) {
+                                _submitForm();
+                              }
+                            },
                             validator: (value) {
                               if (value!.isEmpty) {
-                                return 'Please enter child\'s age';
+                                return 'Please enter password';
                               }
-                              if (int.tryParse(value) == null) {
-                                return 'Please enter a valid age';
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters';
                               }
                               return null;
                             },
                           ),
                           const SizedBox(height: 20),
-                          _buildGradeDropdown(),
-                          const SizedBox(height: 40),
+
+                          // Confirm Password Field (only for signup)
+                          if (!_isLoginMode)
+                            _buildTextFieldWithIcon(
+                              controller: _confirmPasswordController,
+                              label: 'Confirm Password',
+                              hintText: 'Confirm your password',
+                              icon: Icons.lock_outline,
+                              isPassword: _obscureConfirmPassword,
+                              textInputAction: TextInputAction.done,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: _getIconColor(),
+                                ),
+                                onPressed: _toggleConfirmPasswordVisibility,
+                              ),
+                              onFieldSubmitted: (_) => _submitForm(),
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return 'Please confirm password';
+                                }
+                                if (value != _passwordController.text) {
+                                  return 'Passwords do not match';
+                                }
+                                return null;
+                              },
+                            ),
+
+                          if (!_isLoginMode) const SizedBox(height: 20),
+
+                          // Info Text
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Text(
+                              _isLoginMode
+                                  ? 'Use your email and your child\'s student code to access their progress'
+                                  : 'Link your account to your child using their student code',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _getTextColor().withOpacity(0.7),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 30),
+
+                          // Submit Button
                           _buildSubmitButton(),
+                          const SizedBox(height: 20),
+
+                          // Toggle Auth Mode
+                          _buildToggleAuthMode(),
+
+                          // Forgot Password (only in login mode)
+                          if (_isLoginMode) ...[
+                            const SizedBox(height: 20),
+                            _buildForgotPassword(),
+                          ],
                         ],
                       ),
                     ),
@@ -221,7 +400,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         ),
         const SizedBox(height: 20),
         Text(
-          'Parent Registration',
+          _isLoginMode ? 'Parent Login' : 'Parent Registration',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -230,19 +409,13 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Create an account to support your child\'s',
+          _isLoginMode
+              ? 'Monitor your child\'s learning progress'
+              : 'Create an account to support your child\'s learning',
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 16,
             color: _getTextColor().withOpacity(0.7),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'South African Sign Language learning',
-          style: TextStyle(
-            fontSize: 16,
-            color: _getTextColor().withOpacity(0.7),
-            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -265,7 +438,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           color: _getTextColor(),
         ),
       ),
-    );
+    ); // Added missing closing parenthesis here
   }
 
   Widget _buildTextFieldWithIcon({
@@ -275,6 +448,10 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     required IconData icon,
     required String? Function(String?) validator,
     TextInputType keyboardType = TextInputType.text,
+    TextInputAction textInputAction = TextInputAction.next,
+    bool isPassword = false,
+    Widget? suffixIcon,
+    void Function(String)? onFieldSubmitted,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,18 +479,22 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           child: TextFormField(
             controller: controller,
             keyboardType: keyboardType,
+            textInputAction: textInputAction,
+            obscureText: isPassword,
             validator: validator,
+            onFieldSubmitted: onFieldSubmitted,
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
-              prefixIcon: Icon(icon, color: _getTextColor().withOpacity(0.5)),
+              hintStyle: TextStyle(color: _getHintColor()),
+              prefixIcon: Icon(icon, color: _getIconColor()),
+              suffixIcon: suffixIcon,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+                borderSide: BorderSide(color: _getBorderColor()),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+                borderSide: BorderSide(color: _getBorderColor()),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -321,83 +502,11 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                     const BorderSide(color: Color(0xFFFF9800), width: 2),
               ),
               filled: true,
-              fillColor: _getBackgroundColor(),
+              fillColor: _getTextFieldBackgroundColor(),
               contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
             style: TextStyle(color: _getTextColor(), fontSize: 16),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGradeDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Child's Grade",
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _getTextColor(),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: DropdownButtonFormField<String>(
-            value: _childGrade,
-            onChanged: (String? newValue) {
-              setState(() {
-                _childGrade = newValue;
-              });
-            },
-            validator: (value) =>
-                value == null ? 'Please select child\'s grade' : null,
-            decoration: InputDecoration(
-              hintText: 'Select grade',
-              hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
-              prefixIcon:
-                  Icon(Icons.school, color: _getTextColor().withOpacity(0.5)),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: Color(0xFFFF9800), width: 2),
-              ),
-              filled: true,
-              fillColor: _getBackgroundColor(),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-            ),
-            dropdownColor: _getCardColor(),
-            style: TextStyle(color: _getTextColor(), fontSize: 16),
-            icon: Icon(Icons.arrow_drop_down,
-                color: _getTextColor().withOpacity(0.5)),
-            items: _grades.map((String grade) {
-              return DropdownMenuItem<String>(
-                value: grade,
-                child: Text(grade, style: TextStyle(color: _getTextColor())),
-              );
-            }).toList(),
           ),
         ),
       ],
@@ -418,7 +527,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: _submitForm,
+        onPressed: _isLoading ? null : _submitForm,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF9800),
           foregroundColor: Colors.white,
@@ -428,102 +537,76 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           ),
           elevation: 0,
         ),
-        child: const Text(
-          'Create Parent Account',
+        child: _isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                _isLoginMode ? 'Sign In' : 'Create Account',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildToggleAuthMode() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          _isLoginMode ? "Don't have an account?" : 'Already have an account?',
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            color: _getTextColor().withOpacity(0.7),
           ),
         ),
-      ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: _isLoading ? null : _toggleAuthMode,
+          child: Text(
+            _isLoginMode ? 'Sign Up' : 'Sign In',
+            style: const TextStyle(
+              color: Color(0xFFFF9800),
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      showDialog(
-        context: context,
-        builder: (context) => _buildSuccessDialog(),
-      );
-    }
-  }
-
-  Widget _buildSuccessDialog() {
-    return Dialog(
-      backgroundColor: _getCardColor(),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF9800).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle,
-                  color: Color(0xFFFF9800), size: 60),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Account Created!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: _getTextColor(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Your parent account has been created. You can now monitor your child\'s progress and access learning resources.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: _getTextColor().withOpacity(0.7),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF9800).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pushReplacementNamed(context, '/parent/dashboard');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF9800),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Continue to Dashboard'),
-              ),
-            ),
-          ],
+  Widget _buildForgotPassword() {
+    return GestureDetector(
+      onTap: _isLoading
+          ? null
+          : () {
+              _showError('Password reset feature coming soon!');
+            },
+      child: const Text(
+        'Forgot Password?',
+        style: TextStyle(
+          color: Color(0xFFFF9800),
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.underline,
+          fontSize: 14,
         ),
       ),
     );
   }
 
-  Color _getBackgroundColor() {
+  // Color methods
+  Color _getTextFieldBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E1E2E)
-        : const Color(0xFFF7FAFC);
+        ? const Color(0xFF2D2D3E)
+        : const Color(0xFFF0F4F8);
   }
 
   Color _getTextColor() {
@@ -538,14 +621,33 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         : Colors.white;
   }
 
+  Color _getBorderColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF3D3D4E)
+        : const Color(0xFFE2E8F0);
+  }
+
+  Color _getHintColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF888888)
+        : const Color(0xFF718096);
+  }
+
+  Color _getIconColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF888888)
+        : const Color(0xFF718096);
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
     _surnameController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _studentCodeController.dispose();
     _phoneController.dispose();
-    _childNameController.dispose();
-    _childAgeController.dispose();
     super.dispose();
   }
 }

@@ -1,6 +1,8 @@
+// lib/pages/student/auth_screen.dart
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:signsync_academy/core/services/auth_service.dart';
 
 class StudentAuthScreen extends StatefulWidget {
   const StudentAuthScreen({super.key});
@@ -10,26 +12,60 @@ class StudentAuthScreen extends StatefulWidget {
 }
 
 class _StudentAuthScreenState extends State<StudentAuthScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _surnameController = TextEditingController();
-  String? _selectedGrade;
+  final TextEditingController _studentCodeController = TextEditingController();
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
 
-  final List<String> _grades = [
-    'Grade R',
-    'Grade 1',
-    'Grade 2',
-    'Grade 3',
-    'Grade 4',
-    'Grade 5',
-    'Grade 6',
-    'Grade 7',
-    'Grade 8',
-    'Grade 9',
-    'Grade 10',
-    'Grade 11',
-    'Grade 12'
-  ];
+  void _loginAsStudent() async {
+    if (_studentCodeController.text.isEmpty) {
+      _showError('Please enter your student code');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user =
+          await _authService.studentLogin(_studentCodeController.text.trim());
+
+      if (user != null) {
+        _showSuccess('Welcome to SignSync Academy!');
+        // Navigate to student dashboard after a brief delay
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/student/dashboard');
+        }
+      }
+    } catch (e) {
+      _showError(e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +82,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
           ),
           child: Column(
             children: [
-              // Custom App Bar
+              // Back button
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -56,15 +92,6 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Student Registration',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -72,7 +99,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                 child: Container(
                   margin: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: _getCardColor(),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
@@ -82,40 +109,111 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                       ),
                     ],
                   ),
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
+                  child: Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          _buildHeader(),
-                          const SizedBox(height: 32),
-                          _buildTextFieldWithIcon(
-                            controller: _nameController,
-                            label: 'First Name',
-                            hintText: 'Enter your first name',
-                            icon: Icons.person,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter your first name'
-                                : null,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Icon
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4CAF50).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          const SizedBox(height: 20),
-                          _buildTextFieldWithIcon(
-                            controller: _surnameController,
-                            label: 'Last Name',
-                            hintText: 'Enter your last name',
-                            icon: Icons.person_outline,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter your last name'
-                                : null,
+                          child: const Icon(
+                            Icons.person_rounded,
+                            color: Color(0xFF4CAF50),
+                            size: 40,
                           ),
-                          const SizedBox(height: 20),
-                          _buildGradeDropdown(),
-                          const SizedBox(height: 40),
-                          _buildSubmitButton(),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Title
+                        const Text(
+                          'Student Login',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Subtitle
+                        const Text(
+                          'Enter your student code to enter the classroom',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+
+                        // Student Code Input
+                        TextFormField(
+                          controller: _studentCodeController,
+                          decoration: InputDecoration(
+                            labelText: 'Student Code',
+                            hintText: 'TOD001',
+                            prefixIcon: const Icon(Icons.code_rounded),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w500),
+                          textAlign: TextAlign.center,
+                          onFieldSubmitted: (_) => _loginAsStudent(),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Help text
+                        const Text(
+                          'Your teacher will give you your student code',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+
+                        // Login Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: _isLoading
+                              ? const Center(
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF4CAF50)),
+                                  ),
+                                )
+                              : ElevatedButton(
+                                  onPressed: _loginAsStudent,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4CAF50),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 4,
+                                  ),
+                                  child: const Text(
+                                    'Enter Classroom',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -127,332 +225,9 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF4CAF50), Color(0xFF45a049)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF4CAF50).withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child:
-              const Icon(Icons.person_rounded, color: Colors.white, size: 40),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Student Registration',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: _getTextColor(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Create your student account to start learning',
-          style: TextStyle(
-            fontSize: 16,
-            color: _getTextColor().withOpacity(0.7),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'South African Sign Language',
-          style: TextStyle(
-            fontSize: 16,
-            color: _getTextColor().withOpacity(0.7),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTextFieldWithIcon({
-    required TextEditingController controller,
-    required String label,
-    required String hintText,
-    required IconData icon,
-    required String? Function(String?) validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _getTextColor(),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: TextFormField(
-            controller: controller,
-            validator: validator,
-            decoration: InputDecoration(
-              hintText: hintText,
-              hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
-              prefixIcon: Icon(icon, color: _getTextColor().withOpacity(0.5)),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: Color(0xFF4CAF50), width: 2),
-              ),
-              filled: true,
-              fillColor: _getBackgroundColor(),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-            ),
-            style: TextStyle(color: _getTextColor(), fontSize: 16),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGradeDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Grade',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _getTextColor(),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: DropdownButtonFormField<String>(
-            value: _selectedGrade,
-            onChanged: (String? newValue) {
-              setState(() {
-                _selectedGrade = newValue;
-              });
-            },
-            validator: (value) =>
-                value == null ? 'Please select your grade' : null,
-            decoration: InputDecoration(
-              hintText: 'Select your grade',
-              hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
-              prefixIcon:
-                  Icon(Icons.school, color: _getTextColor().withOpacity(0.5)),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: Color(0xFF4CAF50), width: 2),
-              ),
-              filled: true,
-              fillColor: _getBackgroundColor(),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-            ),
-            dropdownColor: _getCardColor(),
-            style: TextStyle(color: _getTextColor(), fontSize: 16),
-            icon: Icon(Icons.arrow_drop_down,
-                color: _getTextColor().withOpacity(0.5)),
-            items: _grades.map((String grade) {
-              return DropdownMenuItem<String>(
-                value: grade,
-                child: Text(grade, style: TextStyle(color: _getTextColor())),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4CAF50).withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: _submitForm,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4CAF50),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 0,
-        ),
-        child: const Text(
-          'Create Student Account',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      showDialog(
-        context: context,
-        builder: (context) => _buildSuccessDialog(),
-      );
-    }
-  }
-
-  Widget _buildSuccessDialog() {
-    return Dialog(
-      backgroundColor: _getCardColor(),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFF4CAF50).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle,
-                  color: Color(0xFF4CAF50), size: 60),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Welcome to SignSync!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: _getTextColor(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Your student account has been created. Start your SASL learning journey today!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: _getTextColor().withOpacity(0.7),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF4CAF50).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pushReplacementNamed(context, '/student/dashboard');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Start Learning'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getBackgroundColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E1E2E)
-        : const Color(0xFFF7FAFC);
-  }
-
-  Color _getTextColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF2D3748);
-  }
-
-  Color _getCardColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E1E2E)
-        : Colors.white;
-  }
-
   @override
   void dispose() {
-    _nameController.dispose();
-    _surnameController.dispose();
+    _studentCodeController.dispose();
     super.dispose();
   }
 }

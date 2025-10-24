@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -54,12 +55,64 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Navigate to welcome screen after splash screen
-    Future.delayed(const Duration(seconds: 3), () {
+    // ✅ SAFE AUTH CHECK - Wait for Supabase to be ready
+    _safeAuthCheck();
+  }
+
+  void _safeAuthCheck() async {
+    try {
+      // Wait for animations and ensure Supabase is ready
+      await Future.delayed(const Duration(seconds: 3));
+
+      if (!mounted) return;
+
+      // ✅ SAFE ACCESS: Use Supabase.instance only after ensuring it's initialized
+      final currentUser = Supabase.instance.client.auth.currentUser;
+
+      if (currentUser != null) {
+        _redirectToDashboard(currentUser);
+      } else {
+        Navigator.pushReplacementNamed(context, '/welcome');
+      }
+    } catch (e) {
+      // If Supabase isn't ready, just go to welcome screen
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/welcome');
       }
-    });
+    }
+  }
+
+  void _redirectToDashboard(User user) async {
+    try {
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      final role = profile?['role'] ?? 'student';
+
+      if (mounted) {
+        switch (role) {
+          case 'educator':
+            Navigator.pushReplacementNamed(context, '/educator/dashboard');
+            break;
+          case 'student':
+            Navigator.pushReplacementNamed(context, '/student/dashboard');
+            break;
+          case 'parent':
+            Navigator.pushReplacementNamed(context, '/parent/dashboard');
+            break;
+          default:
+            Navigator.pushReplacementNamed(context, '/welcome');
+        }
+      }
+    } catch (e) {
+      // If error, go to welcome screen
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/welcome');
+      }
+    }
   }
 
   @override
