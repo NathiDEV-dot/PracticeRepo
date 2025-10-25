@@ -1,11 +1,15 @@
 // ignore_for_file: deprecated_member_use
 
+// ignore: unused_import
+import 'dart:io'; // Add this import
 import 'package:flutter/material.dart';
 
 class VideoEditor extends StatefulWidget {
-  final File? videoFile;
+  final String filePath; // Change from File? to String
 
-  const VideoEditor({super.key, this.videoFile});
+  const VideoEditor(
+      {super.key,
+      required this.filePath}); // Remove the extra videoFile parameter
 
   @override
   State<VideoEditor> createState() => _VideoEditorState();
@@ -135,7 +139,7 @@ class _VideoEditorState extends State<VideoEditor> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Video Preview',
+                    'Editing: ${widget.filePath.split('/').last}', // Show filename
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -828,10 +832,4 @@ class _VideoEditorState extends State<VideoEditor> {
         ? const Color(0xFF2D3748)
         : const Color(0xFFE2E8F0);
   }
-}
-
-// File class for compatibility
-class File {
-  final String path;
-  const File(this.path);
 }
