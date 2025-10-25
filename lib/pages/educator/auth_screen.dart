@@ -20,19 +20,9 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
 
   final AuthService _authService = AuthService();
   bool _isLoading = false;
-  bool _isLoginMode = true;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-
-  void _toggleAuthMode() {
-    setState(() {
-      _isLoginMode = !_isLoginMode;
-      _passwordController.clear();
-      _confirmPasswordController.clear();
-      _obscurePassword = true;
-      _obscureConfirmPassword = true;
-    });
-  }
+  bool _isSignUpMode = true;
 
   void _togglePasswordVisibility() {
     setState(() {
@@ -53,36 +43,26 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
       });
 
       try {
-        AuthResponse? authResponse;
-
-        if (_isLoginMode) {
-          // Login existing educator
-          authResponse = await _authService.educatorLogin(
-            _emailController.text.trim(),
-            _passwordController.text,
-          );
+        if (_isSignUpMode) {
+          await _educatorSignUp();
         } else {
-          // Register new educator
-          authResponse = await _authService.educatorSignUp(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-            confirmPassword: _confirmPasswordController.text,
-          );
-        }
-
-        if (authResponse != null && authResponse.user != null) {
-          _showSuccess(_isLoginMode
-              ? 'Welcome back to SignSync Academy!'
-              : 'Your educator account has been created successfully!');
-
-          // Navigate to dashboard after a brief delay
-          await Future.delayed(const Duration(seconds: 1));
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/educator/dashboard');
-          }
+          await _educatorLogin();
         }
       } catch (e) {
-        _showError(e.toString().replaceAll('Exception: ', ''));
+        String errorMessage = e.toString().replaceAll('Exception: ', '');
+
+        if (errorMessage.contains('already exists')) {
+          _showErrorWithAction(
+            'An account already exists. Would you like to sign in instead?',
+            () {
+              setState(() {
+                _isSignUpMode = false;
+              });
+            },
+          );
+        } else {
+          _showError(errorMessage);
+        }
       } finally {
         if (mounted) {
           setState(() {
@@ -91,6 +71,97 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
         }
       }
     }
+  }
+
+  Future<void> _educatorSignUp() async {
+    debugPrint('🔄 Starting educator signup for: ${_emailController.text}');
+
+    final authResponse = await _authService.educatorSignUp(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+
+    if (authResponse != null && authResponse.user != null) {
+      _showSuccess(
+          'Account created successfully! Welcome to SignSync Academy.');
+
+      // Link educator to their classes
+      await _linkEducatorToClasses(authResponse.user!.id);
+
+      // Navigate to dashboard
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/educator/dashboard');
+      }
+    }
+  }
+
+  Future<void> _educatorLogin() async {
+    final authResponse = await _authService.educatorLogin(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+
+    if (authResponse != null && authResponse.user != null) {
+      final educatorInfo =
+          await _authService.getEducatorProfile(authResponse.user!.id);
+      final educatorName = educatorInfo != null
+          ? '${educatorInfo['first_name']} ${educatorInfo['last_name']}'
+          : 'Educator';
+
+      _showSuccess('Welcome back, $educatorName!');
+
+      // Navigate to dashboard immediately
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/educator/dashboard');
+      }
+    }
+  }
+
+  Future<void> _linkEducatorToClasses(String educatorId) async {
+    try {
+      await Supabase.instance.client.from('classes').update({
+        'educator_id': educatorId,
+      }).eq('grade', _getEducatorGradeFromEmail());
+
+      debugPrint(
+          '✅ Educator linked to classes for grade: ${_getEducatorGradeFromEmail()}');
+    } catch (e) {
+      debugPrint('⚠️ Could not link educator to classes: $e');
+    }
+  }
+
+  String _getEducatorGradeFromEmail() {
+    final email = _emailController.text.trim();
+    if (email.contains('zanele.mthembu')) return 'Grade 1';
+    if (email.contains('johan.venter')) return 'Grade 2';
+    if (email.contains('lerato.moloi')) return 'Grade 3';
+    if (email.contains('sarah.ndlovu')) return 'Grade 4';
+    if (email.contains('thabo.mokoena')) return 'Grade 5';
+    if (email.contains('nadia.vanwyk')) return 'Grade 6';
+    if (email.contains('bongani.zulu')) return 'Grade 7';
+    if (email.contains('maria.botha')) return 'Grade 8';
+    if (email.contains('sipho.khumalo')) return 'Grade 9';
+    if (email.contains('annelise.dewet')) return 'Grade 10';
+    if (email.contains('kgosi.malema')) return 'Grade 11';
+    if (email.contains('elizabeth.smith')) return 'Grade 12';
+    return 'Grade 1';
+  }
+
+  void _toggleAuthMode() {
+    setState(() {
+      _isSignUpMode = !_isSignUpMode;
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+    });
+  }
+
+  void _fillDemoCredentials() {
+    setState(() {
+      _emailController.text = 'zanele.mthembu@transorange.school.za';
+      _passwordController.text = 'Educator123!';
+      _confirmPasswordController.text = 'Educator123!';
+    });
   }
 
   void _showError(String message) {
@@ -108,6 +179,32 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showErrorWithAction(String message, VoidCallback action) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Expanded(child: Text(message)),
+            TextButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                action();
+              },
+              child: const Text(
+                'SIGN IN',
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 6),
       ),
     );
   }
@@ -127,7 +224,6 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
           ),
           child: Column(
             children: [
-              // Custom App Bar
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -139,7 +235,7 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _isLoginMode ? 'Educator Login' : 'Educator Registration',
+                      _isSignUpMode ? 'Educator Sign Up' : 'Educator Login',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -172,55 +268,45 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
                         children: [
                           _buildHeader(),
                           const SizedBox(height: 32),
-
-                          // Email Field
                           _buildTextFieldWithIcon(
                             controller: _emailController,
                             label: 'School Email',
-                            hintText: 'your.name@school.edu.za',
-                            icon: Icons.email,
+                            hintText: 'your.name@transorange.school.za',
+                            icon: Icons.email_rounded,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             validator: (value) {
                               if (value!.isEmpty) {
-                                return 'Please enter school email';
+                                return 'Please enter your school email';
                               }
-                              if (!value.contains('@') ||
-                                  !value.contains('.')) {
-                                return 'Please enter a valid email address';
+                              if (!value.endsWith('@transorange.school.za')) {
+                                return 'Please use your school email address';
                               }
                               return null;
                             },
                           ),
                           const SizedBox(height: 20),
-
-                          // Password Field
                           _buildTextFieldWithIcon(
                             controller: _passwordController,
                             label: 'Password',
                             hintText: 'Enter your password',
-                            icon: Icons.lock,
+                            icon: Icons.lock_rounded,
                             isPassword: _obscurePassword,
-                            textInputAction: _isLoginMode
-                                ? TextInputAction.done
-                                : TextInputAction.next,
+                            textInputAction: _isSignUpMode
+                                ? TextInputAction.next
+                                : TextInputAction.done,
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
+                                    ? Icons.visibility_off_rounded
+                                    : Icons.visibility_rounded,
                                 color: _getIconColor(),
                               ),
                               onPressed: _togglePasswordVisibility,
                             ),
-                            onFieldSubmitted: (_) {
-                              if (_isLoginMode) {
-                                _submitForm();
-                              }
-                            },
                             validator: (value) {
                               if (value!.isEmpty) {
-                                return 'Please enter password';
+                                return 'Please enter your password';
                               }
                               if (value.length < 6) {
                                 return 'Password must be at least 6 characters';
@@ -229,29 +315,26 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
                             },
                           ),
                           const SizedBox(height: 20),
-
-                          // Confirm Password Field (only for signup)
-                          if (!_isLoginMode)
+                          if (_isSignUpMode) ...[
                             _buildTextFieldWithIcon(
                               controller: _confirmPasswordController,
                               label: 'Confirm Password',
                               hintText: 'Confirm your password',
-                              icon: Icons.lock_outline,
+                              icon: Icons.lock_outline_rounded,
                               isPassword: _obscureConfirmPassword,
                               textInputAction: TextInputAction.done,
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscureConfirmPassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
                                   color: _getIconColor(),
                                 ),
                                 onPressed: _toggleConfirmPasswordVisibility,
                               ),
-                              onFieldSubmitted: (_) => _submitForm(),
                               validator: (value) {
                                 if (value!.isEmpty) {
-                                  return 'Please confirm password';
+                                  return 'Please confirm your password';
                                 }
                                 if (value != _passwordController.text) {
                                   return 'Passwords do not match';
@@ -259,16 +342,35 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
                                 return null;
                               },
                             ),
-
-                          if (!_isLoginMode) const SizedBox(height: 20),
-
-                          // Info Text
+                            const SizedBox(height: 20),
+                          ],
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed:
+                                  _isLoading ? null : _fillDemoCredentials,
+                              icon: const Icon(Icons.visibility_rounded,
+                                  size: 18),
+                              label: const Text('Fill Demo Credentials'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF667EEA),
+                                side:
+                                    const BorderSide(color: Color(0xFF667EEA)),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             child: Text(
-                              _isLoginMode
-                                  ? 'Use your school email to access your educator account'
-                                  : 'Your email must be pre-verified in our school records',
+                              _isSignUpMode
+                                  ? 'Create your educator account using your pre-registered school email'
+                                  : 'Sign in to your educator account',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
@@ -277,18 +379,12 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 30),
-
-                          // Submit Button
                           _buildSubmitButton(),
                           const SizedBox(height: 20),
-
-                          // Toggle Auth Mode
                           _buildToggleAuthMode(),
-
-                          // Password reset temporarily removed
-                          // Will be implemented in future update
+                          const SizedBox(height: 30),
+                          _buildEducatorAccountsInfo(),
                         ],
                       ),
                     ),
@@ -328,7 +424,7 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
         ),
         const SizedBox(height: 20),
         Text(
-          _isLoginMode ? 'Educator Login' : 'Educator Registration',
+          _isSignUpMode ? 'Educator Sign Up' : 'Educator Portal',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -337,9 +433,9 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          _isLoginMode
-              ? 'Welcome back to your teaching dashboard'
-              : 'Create your professional educator account',
+          _isSignUpMode
+              ? 'Create your account to access your teaching dashboard'
+              : 'Access your teaching dashboard and manage your classes',
           style: TextStyle(
             fontSize: 16,
             color: _getTextColor().withOpacity(0.7),
@@ -359,7 +455,6 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
     TextInputAction textInputAction = TextInputAction.next,
     bool isPassword = false,
     Widget? suffixIcon,
-    void Function(String)? onFieldSubmitted,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +485,6 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
             textInputAction: textInputAction,
             obscureText: isPassword,
             validator: validator,
-            onFieldSubmitted: onFieldSubmitted,
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(color: _getHintColor()),
@@ -455,7 +549,7 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
                 ),
               )
             : Text(
-                _isLoginMode ? 'Sign In' : 'Create Account',
+                _isSignUpMode ? 'Create Account' : 'Sign In',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -470,7 +564,9 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          _isLoginMode ? "Don't have an account?" : 'Already have an account?',
+          _isSignUpMode
+              ? 'Already have an account?'
+              : 'Need to create an account?',
           style: TextStyle(
             color: _getTextColor().withOpacity(0.7),
           ),
@@ -479,15 +575,97 @@ class _EducatorAuthScreenState extends State<EducatorAuthScreen> {
         GestureDetector(
           onTap: _isLoading ? null : _toggleAuthMode,
           child: Text(
-            _isLoginMode ? 'Sign Up' : 'Sign In',
+            _isSignUpMode ? 'Sign In' : 'Sign Up',
             style: const TextStyle(
               color: Color(0xFF667EEA),
               fontWeight: FontWeight.w600,
-              decoration: TextDecoration.underline,
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEducatorAccountsInfo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _isSignUpMode ? Icons.person_add_rounded : Icons.info_rounded,
+                color: Colors.blue,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _isSignUpMode
+                    ? 'Pre-registered Educators'
+                    : 'Educator Accounts',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _isSignUpMode
+                ? 'Use your pre-registered school email to create your account'
+                : 'All educators use password: Educator123!',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.blue[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              _buildEducatorChip('Grade 1: Zanele Mthembu'),
+              _buildEducatorChip('Grade 2: Johan Venter'),
+              _buildEducatorChip('Grade 3: Lerato Moloi'),
+              _buildEducatorChip('Grade 4: Sarah Ndlovu'),
+              _buildEducatorChip('Grade 5: Thabo Mokoena'),
+              _buildEducatorChip('Grade 6: Nadia van Wyk'),
+              _buildEducatorChip('Grade 7: Bongani Zulu'),
+              _buildEducatorChip('Grade 8: Maria Botha'),
+              _buildEducatorChip('Grade 9: Sipho Khumalo'),
+              _buildEducatorChip('Grade 10: Annelise de Wet'),
+              _buildEducatorChip('Grade 11: Kgosi Malema'),
+              _buildEducatorChip('Grade 12: Elizabeth Smith'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEducatorChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          color: Colors.blue[800],
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 

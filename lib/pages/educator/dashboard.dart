@@ -5,8 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'content_management.dart';
 import 'live_sessions_manage.dart';
 import 'review_submissions.dart';
-import 'package:signsync_academy/core/services/_service.dart';
-import 'lib/core/services/dashboard_service.dart'; // Import your service
+import '../../core/services/dashboard_service.dart';
 
 class EducatorDashboard extends StatefulWidget {
   const EducatorDashboard({super.key});
@@ -19,7 +18,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   int _currentIndex = 0;
   Map<String, dynamic>? _educatorData;
   bool _isLoading = true;
-  final DashboardService _dashboardService = DashboardService();
+  late final DashboardService _dashboardService;
 
   // Professional color palette
   final Color _primaryColor = const Color(0xFF4361EE);
@@ -32,6 +31,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   @override
   void initState() {
     super.initState();
+    _dashboardService = DashboardService();
     _loadEducatorData();
   }
 
@@ -44,6 +44,8 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           _educatorData = data;
           _isLoading = false;
         });
+      } else {
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint('Error loading educator data: $e');
@@ -200,7 +202,6 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
       ),
       child: Row(
         children: [
-          // Profile avatar
           Container(
             width: 60,
             height: 60,
@@ -886,7 +887,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
     );
   }
 
-  // Color methods (unchanged from your original)
+  // Color methods - CORRECTED METHOD NAMES
   Color _getBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF0F0F1E)
@@ -977,7 +978,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
         : const Color(0xFF4361EE).withOpacity(0.15);
   }
 
-  // Helper methods to replace .withOpacity()
+  // Helper methods
   Color _darkenColor(Color color, double factor) {
     assert(factor >= 0 && factor <= 1);
     return Color.fromARGB(
