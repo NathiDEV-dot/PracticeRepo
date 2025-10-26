@@ -62,15 +62,23 @@ class LessonCreationService {
   // Fetch educator's subjects from database
   Future<List<String>> getEducatorSubjects(String educatorId) async {
     try {
-      final response = await _client
-          .from('educator_profiles')
-          .select('subjects')
-          .eq('user_id', educatorId)
+      // Try to get subjects from profiles table first
+      final profileResponse = await _client
+          .from('profiles')
+          .select('subject_specialization')
+          .eq('id', educatorId)
+          .eq('role', 'educator')
           .single();
 
-      final subjects = response['subjects'] as List<dynamic>?;
-      return subjects?.cast<String>() ??
-          ['Mathematics', 'English', 'Science', 'History']; // fallback
+      final subjectSpecialization =
+          profileResponse['subject_specialization'] as String?;
+
+      if (subjectSpecialization != null && subjectSpecialization.isNotEmpty) {
+        return [subjectSpecialization];
+      }
+
+      // Fallback to default subjects
+      return ['Mathematics', 'English', 'Science', 'History'];
     } catch (e) {
       if (kDebugMode) {
         print('Error fetching educator subjects: $e');
@@ -79,21 +87,36 @@ class LessonCreationService {
     }
   }
 
-  // Fetch educator's grade from database
+  // Fetch educator's grade from database - CORRECTED VERSION
   Future<String> getEducatorGrade(String educatorId) async {
     try {
+      debugPrint('🔍 Fetching grade for educator: $educatorId');
+
+      // Query the profiles table where educators actually exist
       final response = await _client
-          .from('educator_profiles')
-          .select('grade_level')
-          .eq('user_id', educatorId)
+          .from('profiles')
+          .select('grade, first_name, last_name')
+          .eq('id', educatorId)
+          .eq('role', 'educator')
           .single();
 
-      return response['grade_level'] as String? ?? 'Grade 10';
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching educator grade: $e');
+      final grade = response['grade'] as String?;
+      final firstName = response['first_name'] as String?;
+      final lastName = response['last_name'] as String?;
+
+      debugPrint('📊 Found educator: $firstName $lastName - Grade: $grade');
+
+      if (grade == null || grade.isEmpty) {
+        debugPrint('⚠️ No grade found for educator, using fallback');
+        // Don't use hardcoded fallback - throw error instead
+        throw Exception('No grade assigned to educator $firstName $lastName');
       }
-      return 'Grade 10';
+
+      return grade;
+    } catch (e) {
+      debugPrint('❌ Error fetching educator grade: $e');
+      // Don't return hardcoded grade - rethrow the error
+      throw Exception('Failed to fetch educator grade: ${e.toString()}');
     }
   }
 

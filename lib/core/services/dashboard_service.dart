@@ -24,6 +24,7 @@ class DashboardService {
 
       debugPrint(
           '✅ Educator profile loaded: ${educatorResponse['first_name']} ${educatorResponse['last_name']}');
+      debugPrint('📊 Educator grade: ${educatorResponse['grade']}');
 
       // Get educator's lessons with proper filtering
       final lessonsResponse = await _client
@@ -72,19 +73,92 @@ class DashboardService {
         // Continue without classes data
       }
 
-      // Get student details - FIXED: query by student_code instead of id
+      // OPTION 2: Get students from pre_verified_users table (since they're not in profiles)
       List<dynamic> studentsResponse = [];
-      final studentCodes = enrollmentsResponse
-          .map<String>((e) => e['student_code'] as String)
-          .toSet()
-          .toList();
+      final educatorGrade = educatorResponse['grade'] as String?;
 
-      if (studentCodes.isNotEmpty) {
-        studentsResponse = await _client
-            .from('profiles')
-            .select('id, first_name, last_name, grade, student_code')
-            .inFilter('student_code', studentCodes); // ← FIXED HERE
-        debugPrint('👥 Students found: ${studentsResponse.length}');
+      if (educatorGrade != null && educatorGrade.isNotEmpty) {
+        debugPrint(
+            '🎯 Getting students for grade: $educatorGrade from pre_verified_users');
+
+        try {
+          // First try pre_verified_users table (where students actually are)
+          final preVerifiedStudents = await _client
+              .from('pre_verified_users')
+              .select('student_code, first_name, last_name, grade, school_name')
+              .eq('role', 'student')
+              .eq('grade', educatorGrade)
+              .order('first_name');
+
+          debugPrint(
+              '👥 Students found in pre_verified_users: ${preVerifiedStudents.length}');
+
+          // Convert pre_verified_users format to match expected profiles format
+          studentsResponse = preVerifiedStudents
+              .map((student) => {
+                    'id': student[
+                        'student_code'], // Use student_code as ID since they don't have UUIDs in profiles
+                    'first_name': student['first_name'],
+                    'last_name': student['last_name'],
+                    'grade': student['grade'],
+                    'student_code': student['student_code'],
+                    'school_name': student['school_name'],
+                  })
+              .toList();
+
+          // Also check profiles table for any students that might exist there
+          try {
+            final profilesStudents = await _client
+                .from('profiles')
+                .select('id, first_name, last_name, grade, student_code')
+                .eq('role', 'student')
+                .eq('grade', educatorGrade)
+                .order('first_name');
+
+            debugPrint(
+                '👥 Students found in profiles table: ${profilesStudents.length}');
+
+            // If there are students in both tables, combine them (remove duplicates by student_code)
+            if (profilesStudents.isNotEmpty) {
+              final existingStudentCodes = studentsResponse
+                  .map((s) => s['student_code'] as String)
+                  .toSet();
+              for (final profileStudent in profilesStudents) {
+                final studentCode = profileStudent['student_code'] as String?;
+                if (studentCode != null &&
+                    !existingStudentCodes.contains(studentCode)) {
+                  studentsResponse.add({
+                    'id': profileStudent['id'],
+                    'first_name': profileStudent['first_name'],
+                    'last_name': profileStudent['last_name'],
+                    'grade': profileStudent['grade'],
+                    'student_code': studentCode,
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('⚠️ Could not query profiles table for students: $e');
+          }
+        } catch (e) {
+          debugPrint('❌ Error querying pre_verified_users: $e');
+          // Fallback to empty list
+          studentsResponse = [];
+        }
+
+        debugPrint(
+            '🎯 Total students for $educatorGrade: ${studentsResponse.length}');
+
+        // Log student names for debugging
+        for (final student in studentsResponse.take(8)) {
+          debugPrint(
+              '   👤 ${student['first_name']} ${student['last_name']} (${student['student_code']})');
+        }
+        if (studentsResponse.length > 8) {
+          debugPrint('   ... and ${studentsResponse.length - 8} more');
+        }
+      } else {
+        debugPrint('⚠️ No grade specified for educator');
       }
 
       // Process the data
@@ -97,6 +171,7 @@ class DashboardService {
         totalLessons,
         publishedLessons,
         draftLessons,
+        educatorGrade,
       );
     } catch (e) {
       debugPrint('❌ Error getting educator data: $e');
@@ -122,8 +197,9 @@ class DashboardService {
     int totalLessons,
     int publishedLessons,
     int draftLessons,
+    String? educatorGrade,
   ) {
-    // Create student map for easy lookup - FIXED: use student_code as key
+    // Create student map for easy lookup - using student_code as key
     final studentMap = <String, Map<String, dynamic>>{};
     for (final student in students) {
       final studentCode = student['student_code'] as String;
@@ -136,7 +212,7 @@ class DashboardService {
       };
     }
 
-    // Process classes and enrollments
+    // Process classes and enrollments (for when classes exist)
     final classesByGrade = <String, List<Map<String, dynamic>>>{};
     final allStudents = <Map<String, dynamic>>[];
     final seenStudents = <String>{};
@@ -175,7 +251,7 @@ class DashboardService {
             .toList(),
       });
 
-      // Build unique student list
+      // Build unique student list from enrollments
       for (final enrollment in classEnrollments) {
         final studentCode = enrollment['student_code'] as String;
         if (!seenStudents.contains(studentCode) &&
@@ -184,6 +260,18 @@ class DashboardService {
           allStudents.add(studentMap[studentCode]!);
         }
       }
+    }
+
+    // If no students from enrollments, use all students from the educator's grade
+    if (allStudents.isEmpty && students.isNotEmpty) {
+      allStudents.addAll(students.map((student) => {
+            'id': student['id'],
+            'first_name': student['first_name'],
+            'last_name': student['last_name'],
+            'grade': student['grade'],
+            'student_code': student['student_code'],
+          }));
+      uniqueStudents.addAll(students.map((s) => s['student_code'] as String));
     }
 
     // Sort students by name
@@ -199,6 +287,11 @@ class DashboardService {
         .toSet()
         .toList();
 
+    // Determine grades taught - use educator's grade if no classes exist
+    final gradesTaught = classesByGrade.isNotEmpty
+        ? classesByGrade.keys.toList()
+        : (educatorGrade != null ? [educatorGrade] : []);
+
     return {
       'educator': educator,
       'stats': {
@@ -213,14 +306,17 @@ class DashboardService {
       },
       'classes_by_grade': classesByGrade,
       'subjects': lessonSubjects,
-      'grades_taught': classesByGrade.keys.toList(),
+      'grades_taught': gradesTaught,
       'all_students': allStudents,
       'recent_lessons': lessons.take(5).toList(),
       'debug_info': {
         'educator_id': educator['id'],
+        'educator_grade': educatorGrade,
         'lessons_queried': lessons.length,
         'classes_queried': classes.length,
         'students_queried': students.length,
+        'students_from_pre_verified': students.length,
+        'students_from_enrollments': seenStudents.length,
       },
     };
   }

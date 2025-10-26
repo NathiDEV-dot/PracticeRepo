@@ -6,6 +6,7 @@ import '../../core/services/dashboard_service.dart';
 import 'content_management.dart';
 import 'live_sessions_manage.dart';
 import 'review_submissions.dart';
+import 'student_list.dart'; // We'll create this new file
 
 class EducatorDashboard extends StatefulWidget {
   const EducatorDashboard({super.key});
@@ -80,6 +81,86 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
         _errorMessage = '$errorMessage\n\nError details: ${e.toString()}';
       });
     }
+  }
+
+  // Navigation methods
+  void _navigateToContentManagement() {
+    setState(() => _currentIndex = 1);
+  }
+
+  void _navigateToStudentList() {
+    if (_educatorData != null) {
+      final students = _educatorData!['all_students'] as List<dynamic>;
+      final educator = _educatorData!['educator'];
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => StudentList(
+            students: students,
+            educatorName: '${educator['first_name']} ${educator['last_name']}',
+          ),
+        ),
+      );
+    }
+  }
+
+  void _navigateToClassesList() {
+    if (_educatorData != null) {
+      final classesByGrade =
+          _educatorData!['classes_by_grade'] as Map<String, dynamic>;
+      final educator = _educatorData!['educator'];
+      // You can create a ClassesList screen similar to StudentList
+      // For now, let's show a dialog with classes info
+      _showClassesDialog(classesByGrade);
+    }
+  }
+
+  void _showClassesDialog(Map<String, dynamic> classesByGrade) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('My Classes'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: classesByGrade.keys.map((grade) {
+              final classes = classesByGrade[grade] as List<dynamic>;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    grade,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  ...classes
+                      .map((classData) => ListTile(
+                            leading: const Icon(Icons.class_rounded),
+                            title: Text(classData['subject']),
+                            subtitle:
+                                Text('${classData['student_count']} students'),
+                            trailing: const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 16),
+                          ))
+                      .toList(),
+                  const SizedBox(height: 16),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   // Method to handle user logout and re-login
@@ -374,6 +455,355 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
     );
   }
 
+  Widget _buildStatsGrid() {
+    if (_isLoading || _educatorData == null) {
+      return _buildLoadingStats();
+    }
+
+    final stats = _educatorData!['stats'];
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.1,
+      children: [
+        // Total Students - Make clickable
+        _buildStatCard(
+          Icons.people_alt_rounded,
+          '${stats['total_students']}',
+          'Total Students',
+          const [Color(0xFFF59E0B), Color(0xFFD97706)],
+          onTap: _navigateToStudentList,
+        ),
+        // Total Classes - Make clickable
+        _buildStatCard(
+          Icons.school_rounded,
+          '${stats['total_classes']}',
+          'Total Classes',
+          const [Color(0xFF4CC9F0), Color(0xFF0891B2)],
+          onTap: _navigateToClassesList,
+        ),
+        // Published Lessons - Make clickable
+        _buildStatCard(
+          Icons.video_library_rounded,
+          '${stats['published_lessons']}',
+          'Published Lessons',
+          const [Color(0xFF4361EE), Color(0xFF3A0CA3)],
+          onTap: _navigateToContentManagement,
+        ),
+        // Total Lessons - Make clickable
+        _buildStatCard(
+          Icons.assignment_rounded,
+          '${stats['total_lessons']}',
+          'Total Lessons',
+          const [Color(0xFF4ADE80), Color(0xFF16A34A)],
+          onTap: _navigateToContentManagement,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(
+      IconData icon, String value, String label, List<Color> gradientColors,
+      {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: _getCardColor(),
+            boxShadow: [
+              BoxShadow(
+                color: _getShadowColor(),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(color: _getBorderColor()),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: gradientColors,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 20),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: _getTextColor(),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _getSecondaryTextColor(),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentActivity() {
+    // Show actual recent activity from the service
+    if (_educatorData != null && _educatorData!['recent_lessons'] != null) {
+      final recentLessons = _educatorData!['recent_lessons'] as List<dynamic>;
+      if (recentLessons.isNotEmpty) {
+        return Column(
+          children: recentLessons
+              .map((lesson) => _buildLessonActivityItem(lesson))
+              .toList(),
+        );
+      }
+    }
+
+    // Fallback to sample data if no real data
+    final activities = [
+      ActivityItem(
+        'Create your first lesson to see activity here',
+        'Get started',
+        Icons.add_circle_rounded,
+        _infoColor,
+        onTap: () => Navigator.pushNamed(context, '/educator/create-lesson'),
+      ),
+    ];
+
+    return Column(
+      children:
+          activities.map((activity) => _buildActivityItem(activity)).toList(),
+    );
+  }
+
+  Widget _buildLessonActivityItem(Map<String, dynamic> lesson) {
+    final isPublished = lesson['is_published'] == true;
+    final createdAt = DateTime.parse(lesson['created_at']);
+    final timeAgo = _formatTimeDifference(createdAt);
+
+    return GestureDetector(
+      onTap: _navigateToContentManagement,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Material(
+            color: _getCardColor(),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: _navigateToContentManagement,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _getBorderColor()),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _getActivityIconBackgroundColor(
+                            isPublished ? _successColor : _warningColor),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isPublished
+                            ? Icons.check_circle_rounded
+                            : Icons.video_library_rounded,
+                        color: isPublished ? _successColor : _warningColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            lesson['title'],
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: _getTextColor(),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${isPublished ? 'Published' : 'Draft'} • $timeAgo',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _getSecondaryTextColor(),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        color: _getHintColor(), size: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ... (Keep all the existing helper methods, color methods, and other widgets the same)
+
+  // The rest of your existing methods remain unchanged...
+  // _buildLoadingWelcomeHeader, _buildErrorWelcomeHeader, _buildSectionHeader,
+  // _buildLoadingStats, _buildQuickActions, _buildQuickActionItem,
+  // _buildActivityItem, _buildLoadingState, _buildErrorState, _buildEmptyState,
+  // _buildBottomNavigationBar, and all color methods...
+
+  // Color methods (keep all existing color methods)
+  Color _getBackgroundColor([bool? isDark]) {
+    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
+    return dark ? const Color(0xFF0F0F1E) : const Color(0xFFF5F7FA);
+  }
+
+  Color _getTextColor([bool? isDark]) {
+    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
+    return dark ? Colors.white : const Color(0xFF1A202C);
+  }
+
+  Color _getSecondaryTextColor([bool? isDark]) {
+    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
+    return dark ? const Color(0xFFA0AEC0) : const Color(0xFF718096);
+  }
+
+  Color _getHintColor([bool? isDark]) {
+    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
+    return dark ? const Color(0xFF718096) : const Color(0xFFA0AEC0);
+  }
+
+  Color _getCardColor([bool? isDark]) {
+    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
+    return dark ? const Color(0xFF1E1E2E) : Colors.white;
+  }
+
+  Color _getBorderColor([bool? isDark]) {
+    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
+    return dark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0);
+  }
+
+  Color _getShadowColor([bool? isDark]) {
+    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
+    return dark
+        ? Colors.black.withOpacity(0.4)
+        : Colors.black.withOpacity(0.08);
+  }
+
+  Color _getWelcomeGradientStart() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? const Color(0xFF1E3A8A).withOpacity(0.3)
+        : const Color(0xFF4361EE).withOpacity(0.15);
+  }
+
+  Color _getWelcomeGradientEnd() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? const Color(0xFF0EA5E9).withOpacity(0.15)
+        : const Color(0xFF4CC9F0).withOpacity(0.08);
+  }
+
+  Color _getSuccessBackgroundColor() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7);
+  }
+
+  Color _getSuccessBorderColor() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF047857) : const Color(0xFF86EFAC);
+  }
+
+  Color _getActionIconBackgroundColor(Color baseColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? _darkenColor(baseColor, 0.8)
+        : _lightenColor(baseColor, 0.9);
+  }
+
+  Color _getActionIconBorderColor(Color baseColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? _darkenColor(baseColor, 0.6)
+        : _lightenColor(baseColor, 0.7);
+  }
+
+  Color _getActivityIconBackgroundColor(Color baseColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? _darkenColor(baseColor, 0.85)
+        : _lightenColor(baseColor, 0.95);
+  }
+
+  Color _getNavBarActiveBackground() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? const Color(0xFF4361EE).withOpacity(0.3)
+        : const Color(0xFF4361EE).withOpacity(0.15);
+  }
+
+  Color _darkenColor(Color color, double factor) {
+    return Color.fromARGB(
+      color.alpha,
+      (color.red * factor).round(),
+      (color.green * factor).round(),
+      (color.blue * factor).round(),
+    );
+  }
+
+  Color _lightenColor(Color color, double factor) {
+    return Color.fromARGB(
+      color.alpha,
+      (color.red + (255 - color.red) * factor).round(),
+      (color.green + (255 - color.green) * factor).round(),
+      (color.blue + (255 - color.blue) * factor).round(),
+    );
+  }
+
   Widget _buildLoadingWelcomeHeader() {
     return Container(
       width: double.infinity,
@@ -471,113 +901,6 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
     );
   }
 
-  Widget _buildStatsGrid() {
-    if (_isLoading || _educatorData == null) {
-      return _buildLoadingStats();
-    }
-
-    final stats = _educatorData!['stats'];
-
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.1,
-      children: [
-        _buildStatCard(
-          Icons.people_alt_rounded,
-          '${stats['total_students']}',
-          'Total Students',
-          const [Color(0xFFF59E0B), Color(0xFFD97706)],
-        ),
-        _buildStatCard(
-          Icons.school_rounded,
-          '${stats['total_classes']}',
-          'Total Classes',
-          const [Color(0xFF4CC9F0), Color(0xFF0891B2)],
-        ),
-        _buildStatCard(
-          Icons.video_library_rounded,
-          '${stats['published_lessons']}',
-          'Published Lessons',
-          const [Color(0xFF4361EE), Color(0xFF3A0CA3)],
-        ),
-        _buildStatCard(
-          Icons.assignment_rounded,
-          '${stats['total_lessons']}',
-          'Total Lessons',
-          const [Color(0xFF4ADE80), Color(0xFF16A34A)],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(
-      IconData icon, String value, String label, List<Color> gradientColors) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: _getCardColor(),
-        boxShadow: [
-          BoxShadow(
-            color: _getShadowColor(),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: _getBorderColor()),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: gradientColors,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: Colors.white, size: 20),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: _getTextColor(),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _getSecondaryTextColor(),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildLoadingStats() {
     return GridView.count(
       shrinkWrap: true,
@@ -599,338 +922,6 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
               strokeWidth: 2,
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildClassesOverview() {
-    if (_isLoading || _educatorData == null) {
-      return _buildLoadingClasses();
-    }
-
-    final classesByGrade =
-        _educatorData!['classes_by_grade'] as Map<String, dynamic>;
-    final allStudents = _educatorData!['all_students'] as List<dynamic>;
-
-    // If no classes, show lessons overview instead
-    if (classesByGrade.isEmpty) {
-      return _buildLessonsOverview();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildStudentsSummaryCard(allStudents),
-        const SizedBox(height: 16),
-        ...classesByGrade.keys
-            .map((grade) => _buildGradeClassCard(grade, classesByGrade[grade]))
-            .toList(),
-      ],
-    );
-  }
-
-  Widget _buildLessonsOverview() {
-    final stats = _educatorData!['stats'];
-    final recentLessons = _educatorData!['recent_lessons'] as List<dynamic>;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _getCardColor(),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _getBorderColor()),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_primaryColor, _secondaryColor],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.video_library_rounded,
-                    color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${stats['total_lessons']} Lessons Created',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: _getTextColor(),
-                      ),
-                    ),
-                    Text(
-                      '${stats['published_lessons']} published • ${stats['draft_lessons']} drafts',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _getSecondaryTextColor(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (recentLessons.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              'Recent Lessons:',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: _getTextColor(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...recentLessons
-                .map((lesson) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Icon(
-                            lesson['is_published'] == true
-                                ? Icons.check_circle_rounded
-                                : Icons.radio_button_unchecked_rounded,
-                            color: lesson['is_published'] == true
-                                ? _successColor
-                                : _warningColor,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              lesson['title'],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _getTextColor(),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ))
-                .toList(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStudentsSummaryCard(List<dynamic> students) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _getCardColor(),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _getBorderColor()),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_warningColor, _warningColor.withOpacity(0.7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.people_alt_rounded,
-                    color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${students.length} Students',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: _getTextColor(),
-                      ),
-                    ),
-                    Text(
-                      'Across all your classes',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _getSecondaryTextColor(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: students
-                .take(8)
-                .map<Widget>((student) => Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border:
-                            Border.all(color: _primaryColor.withOpacity(0.2)),
-                      ),
-                      child: Text(
-                        '${student['first_name']} ${student['last_name'][0]}.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _primaryColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ))
-                .toList(),
-          ),
-          if (students.length > 8) ...[
-            const SizedBox(height: 8),
-            Text(
-              '+ ${students.length - 8} more students',
-              style: TextStyle(
-                fontSize: 11,
-                color: _getSecondaryTextColor(),
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGradeClassCard(String grade, List<dynamic> classes) {
-    final totalStudents = classes.fold(
-        0, (sum, classData) => sum + (classData['student_count'] as int));
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: _getCardColor(),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _getBorderColor()),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  grade,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: _getTextColor(),
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _accentColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _accentColor.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    '$totalStudents students',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _accentColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: classes
-                  .map<Widget>((classData) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: _primaryColor.withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              classData['subject'],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _primaryColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${classData['student_count']} students',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: _primaryColor.withOpacity(0.7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingClasses() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _getCardColor(),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _getBorderColor()),
-      ),
-      child: Center(
-        child: CircularProgressIndicator(
-          color: _primaryColor,
-          strokeWidth: 2,
         ),
       ),
     );
@@ -1024,111 +1015,6 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                 ),
                 Icon(Icons.arrow_forward_ios_rounded,
                     color: _getHintColor(), size: 16),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentActivity() {
-    // Show actual recent activity from the service
-    if (_educatorData != null && _educatorData!['recent_lessons'] != null) {
-      final recentLessons = _educatorData!['recent_lessons'] as List<dynamic>;
-      if (recentLessons.isNotEmpty) {
-        return Column(
-          children: recentLessons
-              .map((lesson) => _buildLessonActivityItem(lesson))
-              .toList(),
-        );
-      }
-    }
-
-    // Fallback to sample data if no real data
-    final activities = [
-      ActivityItem(
-        'Create your first lesson to see activity here',
-        'Get started',
-        Icons.add_circle_rounded,
-        _infoColor,
-        onTap: () => Navigator.pushNamed(context, '/educator/create-lesson'),
-      ),
-    ];
-
-    return Column(
-      children:
-          activities.map((activity) => _buildActivityItem(activity)).toList(),
-    );
-  }
-
-  Widget _buildLessonActivityItem(Map<String, dynamic> lesson) {
-    final isPublished = lesson['is_published'] == true;
-    final createdAt = DateTime.parse(lesson['created_at']);
-    final timeAgo = _formatTimeDifference(createdAt);
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: _getCardColor(),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: () {},
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _getBorderColor()),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _getActivityIconBackgroundColor(
-                        isPublished ? _successColor : _warningColor),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isPublished
-                        ? Icons.check_circle_rounded
-                        : Icons.video_library_rounded,
-                    color: isPublished ? _successColor : _warningColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        lesson['title'],
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: _getTextColor(),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${isPublished ? 'Published' : 'Draft'} • $timeAgo',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _getSecondaryTextColor(),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right_rounded,
-                    color: _getHintColor(), size: 20),
               ],
             ),
           ),
@@ -1431,114 +1317,6 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           label: 'Review',
         ),
       ],
-    );
-  }
-
-  // Color methods
-  Color _getBackgroundColor([bool? isDark]) {
-    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
-    return dark ? const Color(0xFF0F0F1E) : const Color(0xFFF5F7FA);
-  }
-
-  Color _getTextColor([bool? isDark]) {
-    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
-    return dark ? Colors.white : const Color(0xFF1A202C);
-  }
-
-  Color _getSecondaryTextColor([bool? isDark]) {
-    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
-    return dark ? const Color(0xFFA0AEC0) : const Color(0xFF718096);
-  }
-
-  Color _getHintColor([bool? isDark]) {
-    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
-    return dark ? const Color(0xFF718096) : const Color(0xFFA0AEC0);
-  }
-
-  Color _getCardColor([bool? isDark]) {
-    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
-    return dark ? const Color(0xFF1E1E2E) : Colors.white;
-  }
-
-  Color _getBorderColor([bool? isDark]) {
-    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
-    return dark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0);
-  }
-
-  Color _getShadowColor([bool? isDark]) {
-    final dark = isDark ?? Theme.of(context).brightness == Brightness.dark;
-    return dark
-        ? Colors.black.withOpacity(0.4)
-        : Colors.black.withOpacity(0.08);
-  }
-
-  Color _getWelcomeGradientStart() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? const Color(0xFF1E3A8A).withOpacity(0.3)
-        : const Color(0xFF4361EE).withOpacity(0.15);
-  }
-
-  Color _getWelcomeGradientEnd() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? const Color(0xFF0EA5E9).withOpacity(0.15)
-        : const Color(0xFF4CC9F0).withOpacity(0.08);
-  }
-
-  Color _getSuccessBackgroundColor() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7);
-  }
-
-  Color _getSuccessBorderColor() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? const Color(0xFF047857) : const Color(0xFF86EFAC);
-  }
-
-  Color _getActionIconBackgroundColor(Color baseColor) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? _darkenColor(baseColor, 0.8)
-        : _lightenColor(baseColor, 0.9);
-  }
-
-  Color _getActionIconBorderColor(Color baseColor) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? _darkenColor(baseColor, 0.6)
-        : _lightenColor(baseColor, 0.7);
-  }
-
-  Color _getActivityIconBackgroundColor(Color baseColor) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? _darkenColor(baseColor, 0.85)
-        : _lightenColor(baseColor, 0.95);
-  }
-
-  Color _getNavBarActiveBackground() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? const Color(0xFF4361EE).withOpacity(0.3)
-        : const Color(0xFF4361EE).withOpacity(0.15);
-  }
-
-  Color _darkenColor(Color color, double factor) {
-    return Color.fromARGB(
-      color.alpha,
-      (color.red * factor).round(),
-      (color.green * factor).round(),
-      (color.blue * factor).round(),
-    );
-  }
-
-  Color _lightenColor(Color color, double factor) {
-    return Color.fromARGB(
-      color.alpha,
-      (color.red + (255 - color.red) * factor).round(),
-      (color.green + (255 - color.green) * factor).round(),
-      (color.blue + (255 - color.blue) * factor).round(),
     );
   }
 }
