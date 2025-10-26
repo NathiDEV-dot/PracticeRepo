@@ -1,4 +1,3 @@
-// lib/core/models/lesson_data.dart
 import 'dart:io';
 
 class LessonData {
@@ -8,14 +7,14 @@ class LessonData {
   String durationText;
   String? description;
   File? videoFile;
-  String? videoUrl; // Added for uploaded videos
+  String? videoUrl;
   bool publishImmediately;
   DateTime? scheduledDate;
   Duration? videoDuration;
 
   LessonData({
     this.title = '',
-    this.subject = 'Mathematics',
+    this.subject = '',
     this.grade = '',
     this.durationText = 'Calculating...',
     this.description,

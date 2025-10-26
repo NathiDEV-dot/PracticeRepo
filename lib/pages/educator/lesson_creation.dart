@@ -1,9 +1,10 @@
-// lib/pages/educator/lesson_creation.dart
-// ignore_for_file: deprecated_member_use, unused_import, avoid_print, prefer_const_constructors
+// ignore_for_file: deprecated_member_use
 
 import 'dart:io';
+// ignore: unused_import
 import 'dart:math';
 import 'dart:async';
+// ignore: unnecessary_import
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -31,8 +32,6 @@ class _LessonCreationState extends State<LessonCreation> {
   late LessonData _lessonData;
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _subjectController =
-      TextEditingController(text: 'Mathematics');
 
   // UI State only
   bool _isUploading = false;
@@ -53,6 +52,11 @@ class _LessonCreationState extends State<LessonCreation> {
   bool _isVideoLoading = false;
   bool _hasVideoError = false;
 
+  // Database fetched data
+  List<String> _availableSubjects = [];
+  String _educatorGrade = '';
+  bool _isLoadingData = true;
+
   // Professional color palette
   final Color _primaryColor = const Color(0xFF4361EE);
   final Color _successColor = const Color(0xFF10B981);
@@ -66,7 +70,7 @@ class _LessonCreationState extends State<LessonCreation> {
     _lessonData = LessonData(
       title: _titleController.text,
       description: _descriptionController.text,
-      subject: _subjectController.text,
+      subject: '',
       grade: '',
       durationText: 'Duration will be auto-detected',
       videoFile: null,
@@ -76,18 +80,43 @@ class _LessonCreationState extends State<LessonCreation> {
 
     _titleController.addListener(_updateLessonData);
     _descriptionController.addListener(_updateLessonData);
-    _subjectController.addListener(_updateLessonData);
+    _loadEducatorData();
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _subjectController.dispose();
     _recordingTimer?.cancel();
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadEducatorData() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        _educatorGrade = await _lessonService.getEducatorGrade(user.id);
+        _availableSubjects = await _lessonService.getEducatorSubjects(user.id);
+
+        setState(() {
+          _lessonData = _lessonData.copyWith(
+            grade: _educatorGrade,
+            subject:
+                _availableSubjects.isNotEmpty ? _availableSubjects.first : '',
+          );
+          _isLoadingData = false;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading educator data: $e');
+      }
+      setState(() {
+        _isLoadingData = false;
+      });
+    }
   }
 
   void _updateLessonData() {
@@ -95,7 +124,6 @@ class _LessonCreationState extends State<LessonCreation> {
       _lessonData = _lessonData.copyWith(
         title: _titleController.text,
         description: _descriptionController.text,
-        subject: _subjectController.text,
       );
     });
   }
@@ -147,7 +175,6 @@ class _LessonCreationState extends State<LessonCreation> {
             _isExtractingDuration = false;
           });
 
-          // For web, create a temporary URL for preview
           await _initializeWebVideoPreview(file.bytes!, file.name);
           _showFileSelected(file);
         } else {
@@ -206,7 +233,6 @@ class _LessonCreationState extends State<LessonCreation> {
       await _videoPlayerController?.dispose();
       _chewieController?.dispose();
 
-      // Create a blob URL for web video preview
       final blobUrl = await _createBlobUrl(videoBytes);
 
       if (blobUrl != null) {
@@ -248,9 +274,9 @@ class _LessonCreationState extends State<LessonCreation> {
                       style: TextStyle(color: Colors.white),
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    const Text(
                       'Video will be available after upload',
-                      style: const TextStyle(color: Colors.white70),
+                      style: TextStyle(color: Colors.white70),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -267,7 +293,9 @@ class _LessonCreationState extends State<LessonCreation> {
         throw Exception('Could not create video preview');
       }
     } catch (e) {
-      print('Web video preview error: $e');
+      if (kDebugMode) {
+        print('Web video preview error: $e');
+      }
       setState(() {
         _isVideoLoading = false;
         _hasVideoError = true;
@@ -283,7 +311,9 @@ class _LessonCreationState extends State<LessonCreation> {
       }
       return null;
     } catch (e) {
-      print('Error creating blob URL: $e');
+      if (kDebugMode) {
+        print('Error creating blob URL: $e');
+      }
       return null;
     }
   }
@@ -367,8 +397,13 @@ class _LessonCreationState extends State<LessonCreation> {
   }
 
   Future<Duration> _estimateVideoDurationWeb(int fileSizeBytes) async {
-    // More accurate estimation for web videos
-    final estimatedMinutes = (fileSizeBytes / (1024 * 1024 * 1.5)).ceil();
+    // More accurate estimation based on typical video bitrates
+    // Average bitrate: ~1-2 Mbps for standard quality, ~4-8 Mbps for HD
+    const averageBitrateMbps = 2.0; // Conservative estimate
+    final fileSizeBits = fileSizeBytes * 8;
+    final durationSeconds = fileSizeBits / (averageBitrateMbps * 1000000);
+
+    final estimatedMinutes = (durationSeconds / 60).ceil();
     return Duration(minutes: estimatedMinutes.clamp(1, 180));
   }
 
@@ -404,7 +439,7 @@ class _LessonCreationState extends State<LessonCreation> {
   }
 
   Future<void> _saveLesson() async {
-    if (!_lessonData.canSave) return;
+    if (!_canSaveLesson) return;
 
     try {
       setState(() {
@@ -587,9 +622,9 @@ class _LessonCreationState extends State<LessonCreation> {
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 kIsWeb ? 'Ready to upload' : 'Tap Play Video to preview',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                style: TextStyle(color: Colors.white70, fontSize: 12),
               ),
               if (kIsWeb) ...[
                 const SizedBox(height: 8),
@@ -624,7 +659,6 @@ class _LessonCreationState extends State<LessonCreation> {
       );
     }
 
-    // Show selected state
     if (_lessonData.videoFile != null ||
         _lessonData.videoUrl != null ||
         _webVideoBytes != null) {
@@ -645,9 +679,9 @@ class _LessonCreationState extends State<LessonCreation> {
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 kIsWeb ? 'Ready to upload' : 'Tap Play Video to preview',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                style: TextStyle(color: Colors.white70, fontSize: 12),
               ),
               if (_webVideoFileName != null) ...[
                 const SizedBox(height: 8),
@@ -735,6 +769,24 @@ class _LessonCreationState extends State<LessonCreation> {
 
   // ========== UI BUILDING METHODS ==========
 
+  bool get _canSaveLesson {
+    return _titleController.text.isNotEmpty &&
+        _lessonData.subject.isNotEmpty &&
+        _lessonData.grade.isNotEmpty &&
+        (_lessonData.videoFile != null || _webVideoBytes != null) &&
+        !_isLoadingData;
+  }
+
+  double get _lessonProgress {
+    double progress = 0.0;
+    if (_titleController.text.isNotEmpty) progress += 0.3;
+    if (_lessonData.grade.isNotEmpty) progress += 0.3;
+    if (_lessonData.videoFile != null || _webVideoBytes != null) {
+      progress += 0.4;
+    }
+    return progress;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -799,15 +851,7 @@ class _LessonCreationState extends State<LessonCreation> {
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(
-              child: _buildFormField(
-                label: 'Subject',
-                hintText: 'Mathematics',
-                controller: _subjectController,
-                icon: Icons.category_rounded,
-                maxLines: 1,
-              ),
-            ),
+            Expanded(child: _buildSubjectDropdown()),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -845,7 +889,6 @@ class _LessonCreationState extends State<LessonCreation> {
                                   ? _primaryColor
                                   : _getTextColor().withOpacity(
                                       _lessonData.videoFile != null ||
-                                              _lessonData.videoUrl != null ||
                                               _webVideoBytes != null
                                           ? 1.0
                                           : 0.5),
@@ -1071,11 +1114,31 @@ class _LessonCreationState extends State<LessonCreation> {
   }
 
   Widget _buildGradeSelection() {
+    if (_isLoadingData) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _getCardColor(),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            CircularProgressIndicator(color: _primaryColor),
+            const SizedBox(width: 12),
+            Text(
+              'Loading your grade...',
+              style: TextStyle(color: _getTextColor()),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Select Grade',
+          'Your Teaching Grade',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -1083,35 +1146,106 @@ class _LessonCreationState extends State<LessonCreation> {
           ),
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: _lessonService.getGradeOptions().map((grade) {
-            final isSelected = _lessonData.grade == grade;
-            return ChoiceChip(
-              label: Text(grade),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _lessonData =
-                      _lessonData.copyWith(grade: selected ? grade : '');
-                });
-              },
-              backgroundColor: _getCardColor(),
-              selectedColor: _primaryColor.withAlpha(50),
-              labelStyle: TextStyle(
-                color: isSelected ? _primaryColor : _getTextColor(),
-                fontWeight: FontWeight.w500,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(
-                  color: isSelected ? _primaryColor : _getBorderColor(),
-                  width: isSelected ? 2 : 1,
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _successColor.withAlpha(20),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _successColor.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.school_rounded, color: _successColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _educatorGrade,
+                      style: TextStyle(
+                        color: _getTextColor(),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      'Automatically assigned from your profile',
+                      style: TextStyle(
+                        color: _getTextColor().withOpacity(0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          }).toList(),
+              Icon(Icons.check_circle_rounded, color: _successColor),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubjectDropdown() {
+    if (_isLoadingData) {
+      return _buildFormField(
+        label: 'Subject',
+        hintText: 'Loading your subjects...',
+        controller: TextEditingController(),
+        icon: Icons.category_rounded,
+        maxLines: 1,
+        enabled: false,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            'Subject',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _getTextColor(),
+            ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _getBorderColor()),
+          ),
+          child: DropdownButtonFormField<String>(
+            value: _lessonData.subject.isNotEmpty ? _lessonData.subject : null,
+            items: _availableSubjects.map((String subject) {
+              return DropdownMenuItem<String>(
+                value: subject,
+                child: Text(subject),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                setState(() {
+                  _lessonData = _lessonData.copyWith(subject: newValue);
+                });
+              }
+            },
+            decoration: InputDecoration(
+              hintText: 'Select your subject',
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              prefixIcon: Icon(Icons.category_rounded,
+                  color: _getTextColor().withOpacity(0.5)),
+            ),
+            style: TextStyle(
+              color: _getTextColor(),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ],
     );
@@ -1309,9 +1443,9 @@ class _LessonCreationState extends State<LessonCreation> {
     return Container(
       margin: const EdgeInsets.all(16),
       child: FloatingActionButton.extended(
-        onPressed: _lessonData.canSave && !_isUploading ? _saveLesson : null,
+        onPressed: _canSaveLesson && !_isUploading ? _saveLesson : null,
         backgroundColor:
-            _lessonData.canSave && !_isUploading ? _primaryColor : Colors.grey,
+            _canSaveLesson && !_isUploading ? _primaryColor : Colors.grey,
         foregroundColor: Colors.white,
         icon: _isUploading
             ? const SizedBox(
@@ -1383,7 +1517,7 @@ class _LessonCreationState extends State<LessonCreation> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: _lessonData.progress,
+              value: _lessonProgress,
               backgroundColor: _getBorderColor(),
               color: _primaryColor,
               minHeight: 6,
@@ -1403,7 +1537,7 @@ class _LessonCreationState extends State<LessonCreation> {
               ),
             ),
             Text(
-              '${(_lessonData.progress * 100).round()}% Complete',
+              '${(_lessonProgress * 100).round()}% Complete',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -1412,6 +1546,16 @@ class _LessonCreationState extends State<LessonCreation> {
             ),
           ],
         ),
+        if (!_canSaveLesson && _lessonProgress >= 0.6) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Complete all required fields to save',
+            style: TextStyle(
+              color: _errorColor,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1449,6 +1593,7 @@ class _LessonCreationState extends State<LessonCreation> {
     required TextEditingController controller,
     required IconData icon,
     int maxLines = 1,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1467,6 +1612,7 @@ class _LessonCreationState extends State<LessonCreation> {
         TextFormField(
           controller: controller,
           maxLines: maxLines,
+          enabled: enabled,
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(
@@ -1486,7 +1632,8 @@ class _LessonCreationState extends State<LessonCreation> {
               borderSide: BorderSide(color: _primaryColor, width: 2),
             ),
             filled: true,
-            fillColor: _getCardColor(),
+            fillColor:
+                enabled ? _getCardColor() : _getCardColor().withOpacity(0.5),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             prefixIcon:
