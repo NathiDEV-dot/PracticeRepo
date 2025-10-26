@@ -15,6 +15,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 
 // Web-specific imports
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
 import '../../../core/services/lesson_creation_service.dart';

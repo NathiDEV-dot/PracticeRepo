@@ -108,9 +108,9 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
     if (_educatorData != null) {
       final classesByGrade =
           _educatorData!['classes_by_grade'] as Map<String, dynamic>;
+      // ignore: unused_local_variable
       final educator = _educatorData!['educator'];
-      // You can create a ClassesList screen similar to StudentList
-      // For now, let's show a dialog with classes info
+
       _showClassesDialog(classesByGrade);
     }
   }
@@ -167,7 +167,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   Future<void> _handleLogout() async {
     try {
       await Supabase.instance.client.auth.signOut();
-      // Navigate to login screen - you might need to adjust this based on your app structure
+
       Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
     } catch (e) {
       debugPrint('Error during logout: $e');
