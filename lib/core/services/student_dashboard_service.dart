@@ -54,7 +54,7 @@ class StudentDashboardService {
           .from('lessons')
           .select('*')
           .eq('grade', studentResponse['grade'])
-          .inFilter('subject', subjects)
+          .inFilter('subject', subjects.isNotEmpty ? subjects : ['Mathematics'])
           .eq('is_published', true)
           .order('created_at', ascending: false)
           .limit(10);
@@ -68,7 +68,7 @@ class StudentDashboardService {
           .from('live_sessions')
           .select('*')
           .eq('grade', studentResponse['grade'])
-          .inFilter('subject', subjects)
+          .inFilter('subject', subjects.isNotEmpty ? subjects : ['Mathematics'])
           .gte('scheduled_time', startOfDay.toIso8601String())
           .lt('scheduled_time', endOfDay.toIso8601String())
           .order('scheduled_time', ascending: true);

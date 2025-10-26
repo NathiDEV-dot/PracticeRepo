@@ -1,4 +1,3 @@
-// lib/pages/educator/dashboard.dart
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
@@ -29,7 +28,6 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   final Color _successColor = const Color(0xFF4ADE80);
   final Color _warningColor = const Color(0xFFF59E0B);
   final Color _errorColor = const Color(0xFFEF4444);
-  // ignore: unused_field
   final Color _infoColor = const Color(0xFF06B6D4);
 
   @override
@@ -48,6 +46,10 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
 
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
+        debugPrint('👤 Current user ID: ${user.id}');
+        debugPrint('👤 Current user email: ${user.email}');
+
+        // Try to load educator data with the user ID
         final data = await _dashboardService.getEducatorData(user.id);
         setState(() {
           _educatorData = data;
@@ -56,15 +58,38 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
       } else {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'No user logged in';
+          _errorMessage = 'No user logged in. Please sign in again.';
         });
       }
     } catch (e) {
-      debugPrint('Error loading educator data: $e');
+      debugPrint('❌ Error loading educator data: $e');
+
+      // Provide more user-friendly error messages
+      String errorMessage = 'Failed to load dashboard data';
+      if (e.toString().contains('Invalid input syntax for type uuid')) {
+        errorMessage = 'Account configuration issue. Please contact support.';
+      } else if (e.toString().contains('JWT')) {
+        errorMessage = 'Session expired. Please sign in again.';
+      } else if (e.toString().contains('connection') ||
+          e.toString().contains('Network')) {
+        errorMessage = 'Network connection failed. Please check your internet.';
+      }
+
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Failed to load dashboard data';
+        _errorMessage = '$errorMessage\n\nError details: ${e.toString()}';
       });
+    }
+  }
+
+  // Method to handle user logout and re-login
+  Future<void> _handleLogout() async {
+    try {
+      await Supabase.instance.client.auth.signOut();
+      // Navigate to login screen - you might need to adjust this based on your app structure
+      Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+    } catch (e) {
+      debugPrint('Error during logout: $e');
     }
   }
 
@@ -99,35 +124,57 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           icon: Icon(Icons.refresh_rounded, color: _getTextColor(isDark)),
           onPressed: _loadEducatorData,
         ),
-        Container(
-          margin: const EdgeInsets.only(right: 16),
-          child: Stack(
-            children: [
-              IconButton(
-                icon: Icon(Icons.notifications_outlined,
-                    color: _getTextColor(isDark), size: 24),
-                onPressed: () {},
+        PopupMenuButton<String>(
+          icon: Icon(Icons.more_vert_rounded, color: _getTextColor(isDark)),
+          onSelected: (value) {
+            if (value == 'logout') {
+              _handleLogout();
+            } else if (value == 'support') {
+              _showSupportDialog();
+            }
+          },
+          itemBuilder: (BuildContext context) => [
+            const PopupMenuItem<String>(
+              value: 'support',
+              child: Row(
+                children: [
+                  Icon(Icons.help_outline_rounded),
+                  SizedBox(width: 8),
+                  Text('Get Help'),
+                ],
               ),
-              Positioned(
-                right: 12,
-                top: 12,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _errorColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _getCardColor(isDark),
-                      width: 2,
-                    ),
-                  ),
-                ),
+            ),
+            const PopupMenuItem<String>(
+              value: 'logout',
+              child: Row(
+                children: [
+                  Icon(Icons.logout_rounded),
+                  SizedBox(width: 8),
+                  Text('Sign Out'),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  void _showSupportDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Need Help?'),
+        content: const Text(
+          'If you\'re experiencing issues with your dashboard, please contact support with your educator code.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -177,12 +224,6 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
           const SizedBox(height: 16),
           _buildStatsGrid(),
           const SizedBox(height: 24),
-          if (_educatorData != null) ...[
-            _buildSectionHeader('My Classes & Students'),
-            const SizedBox(height: 16),
-            _buildClassesOverview(),
-            const SizedBox(height: 24),
-          ],
           _buildSectionHeader('Quick Actions'),
           const SizedBox(height: 16),
           _buildQuickActions(),
@@ -256,7 +297,7 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${subjects.length} ${subjects.length == 1 ? 'Subject' : 'Subjects'} • ${grades.join(", ")}',
+                  '${subjects.length} ${subjects.length == 1 ? 'Subject' : 'Subjects'} • ${grades.isEmpty ? 'All Grades' : grades.join(", ")}',
                   style: TextStyle(
                     fontSize: 14,
                     color: _getSecondaryTextColor(),
@@ -272,30 +313,13 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _getSuccessBackgroundColor(),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _getSuccessBorderColor()),
-                      ),
-                      child: Text(
-                        '${stats['total_students']} Students',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _successColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
                         color: _primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                         border:
                             Border.all(color: _primaryColor.withOpacity(0.3)),
                       ),
                       child: Text(
-                        '${stats['total_classes']} Classes',
+                        '${stats['total_lessons']} Lessons',
                         style: TextStyle(
                           fontSize: 12,
                           color: _primaryColor,
@@ -303,6 +327,43 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
                         ),
                       ),
                     ),
+                    if (stats['total_students'] > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _getSuccessBackgroundColor(),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _getSuccessBorderColor()),
+                        ),
+                        child: Text(
+                          '${stats['total_students']} Students',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _successColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    if (stats['total_classes'] > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _accentColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border:
+                              Border.all(color: _accentColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          '${stats['total_classes']} Classes',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _accentColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -552,6 +613,11 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
         _educatorData!['classes_by_grade'] as Map<String, dynamic>;
     final allStudents = _educatorData!['all_students'] as List<dynamic>;
 
+    // If no classes, show lessons overview instead
+    if (classesByGrade.isEmpty) {
+      return _buildLessonsOverview();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -561,6 +627,109 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
             .map((grade) => _buildGradeClassCard(grade, classesByGrade[grade]))
             .toList(),
       ],
+    );
+  }
+
+  Widget _buildLessonsOverview() {
+    final stats = _educatorData!['stats'];
+    final recentLessons = _educatorData!['recent_lessons'] as List<dynamic>;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _getBorderColor()),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_primaryColor, _secondaryColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.video_library_rounded,
+                    color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${stats['total_lessons']} Lessons Created',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: _getTextColor(),
+                      ),
+                    ),
+                    Text(
+                      '${stats['published_lessons']} published • ${stats['draft_lessons']} drafts',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _getSecondaryTextColor(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (recentLessons.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Recent Lessons:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _getTextColor(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...recentLessons
+                .map((lesson) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            lesson['is_published'] == true
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked_rounded,
+                            color: lesson['is_published'] == true
+                                ? _successColor
+                                : _warningColor,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              lesson['title'],
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _getTextColor(),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ))
+                .toList(),
+          ],
+        ],
+      ),
     );
   }
 
@@ -864,40 +1033,107 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   }
 
   Widget _buildRecentActivity() {
+    // Show actual recent activity from the service
+    if (_educatorData != null && _educatorData!['recent_lessons'] != null) {
+      final recentLessons = _educatorData!['recent_lessons'] as List<dynamic>;
+      if (recentLessons.isNotEmpty) {
+        return Column(
+          children: recentLessons
+              .map((lesson) => _buildLessonActivityItem(lesson))
+              .toList(),
+        );
+      }
+    }
+
+    // Fallback to sample data if no real data
     final activities = [
       ActivityItem(
-        'Sarah Johnson submitted Math Assignment #4',
-        '2 hours ago',
-        Icons.assignment_turned_in_rounded,
-        _successColor,
-        onTap: () => setState(() => _currentIndex = 3),
-      ),
-      ActivityItem(
-        'Live session "Advanced Calculus" starting in 30min',
-        '1 hour ago',
-        Icons.live_tv_rounded,
-        _errorColor,
-        onTap: () => setState(() => _currentIndex = 2),
-      ),
-      ActivityItem(
-        'New student enrollment: Michael Chen',
-        '3 hours ago',
-        Icons.person_add_rounded,
-        _accentColor,
-        onTap: () {},
-      ),
-      ActivityItem(
-        'Weekly performance report generated',
-        '5 hours ago',
-        Icons.analytics_rounded,
-        _primaryColor,
-        onTap: () {},
+        'Create your first lesson to see activity here',
+        'Get started',
+        Icons.add_circle_rounded,
+        _infoColor,
+        onTap: () => Navigator.pushNamed(context, '/educator/create-lesson'),
       ),
     ];
 
     return Column(
       children:
           activities.map((activity) => _buildActivityItem(activity)).toList(),
+    );
+  }
+
+  Widget _buildLessonActivityItem(Map<String, dynamic> lesson) {
+    final isPublished = lesson['is_published'] == true;
+    final createdAt = DateTime.parse(lesson['created_at']);
+    final timeAgo = _formatTimeDifference(createdAt);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _getBorderColor()),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _getActivityIconBackgroundColor(
+                        isPublished ? _successColor : _warningColor),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isPublished
+                        ? Icons.check_circle_rounded
+                        : Icons.video_library_rounded,
+                    color: isPublished ? _successColor : _warningColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lesson['title'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _getTextColor(),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${isPublished ? 'Published' : 'Draft'} • $timeAgo',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getSecondaryTextColor(),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    color: _getHintColor(), size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -965,6 +1201,17 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
     );
   }
 
+  String _formatTimeDifference(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inMinutes < 1) return 'Just now';
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
+    if (difference.inDays < 7) return '${difference.inDays}d ago';
+    return '${difference.inDays ~/ 7}w ago';
+  }
+
   Widget _buildLoadingState() {
     return Center(
       child: Column(
@@ -985,40 +1232,82 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
   }
 
   Widget _buildErrorState() {
-    return Center(
+    return Padding(
+      padding: const EdgeInsets.all(20),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline_rounded, size: 64, color: _errorColor),
-          const SizedBox(height: 16),
+          Icon(Icons.error_outline_rounded, size: 80, color: _errorColor),
+          const SizedBox(height: 24),
           Text(
-            'Error Loading Dashboard',
+            'Unable to Load Dashboard',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
               color: _getTextColor(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _errorMessage ?? 'Unknown error occurred',
-            style: TextStyle(
-              fontSize: 14,
-              color: _getSecondaryTextColor(),
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _loadEducatorData,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _errorColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _errorColor.withOpacity(0.3)),
+            ),
+            child: Text(
+              _errorMessage ?? 'Unknown error occurred',
+              style: TextStyle(
+                fontSize: 14,
+                color: _getTextColor(),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: _loadEducatorData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: const Text('Try Again'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: _handleLogout,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _errorColor,
+                  side: BorderSide(color: _errorColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: const Text('Sign Out'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: _showSupportDialog,
+            child: Text(
+              'Need Help?',
+              style: TextStyle(
+                color: _infoColor,
+                fontSize: 14,
               ),
             ),
-            child: const Text('Try Again'),
           ),
         ],
       ),
@@ -1047,6 +1336,18 @@ class _EducatorDashboardState extends State<EducatorDashboard> {
               fontSize: 14,
               color: _getSecondaryTextColor(),
             ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _loadEducatorData,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Try Again'),
           ),
         ],
       ),

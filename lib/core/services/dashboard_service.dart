@@ -7,54 +7,85 @@ class DashboardService {
   // Get comprehensive educator data for dashboard
   Future<Map<String, dynamic>> getEducatorData(String educatorId) async {
     try {
+      debugPrint('🔍 Loading educator data for ID: $educatorId');
+
+      // Validate the educatorId format
+      if (!_isValidUuid(educatorId)) {
+        debugPrint('❌ Invalid educator ID format: $educatorId');
+        throw Exception('Invalid educator ID format');
+      }
+
       // Get educator basic info
       final educatorResponse = await _client
           .from('profiles')
           .select('id, first_name, last_name, grade, role')
           .eq('id', educatorId)
-          .eq('role', 'educator')
           .single();
 
-      // Get educator's classes with student counts
-      final classesResponse = await _client
-          .from('classes')
-          .select('id, subject, grade, educator_id')
-          .eq('educator_id', educatorId);
+      debugPrint(
+          '✅ Educator profile loaded: ${educatorResponse['first_name']} ${educatorResponse['last_name']}');
 
-      // Get all enrollments for this educator's classes
-      final classIds =
-          classesResponse.map<String>((c) => c['id'] as String).toList();
-      final enrollmentsResponse = classIds.isNotEmpty
-          ? await _client
-              .from('class_enrollments')
-              .select('class_id, student_code')
-              .inFilter('class_id', classIds)
-          : [];
-
-      // Get student details for all enrolled students
-      final studentCodes = enrollmentsResponse
-          .map<String>((e) => e['student_code'] as String)
-          .toSet()
-          .toList();
-      final studentsResponse = studentCodes.isNotEmpty
-          ? await _client
-              .from('profiles')
-              .select('id, first_name, last_name, grade')
-              .inFilter('id', studentCodes)
-          : [];
-
-      // Get educator's lessons
+      // Get educator's lessons with proper filtering
       final lessonsResponse = await _client
           .from('lessons')
-          .select('*')
+          .select('id, title, is_published, created_at, subject, grade')
           .eq('educator_id', educatorId)
           .order('created_at', ascending: false);
+
+      debugPrint(
+          '📚 Lessons found: ${lessonsResponse.length} for educator $educatorId');
 
       // Calculate lesson statistics
       final totalLessons = lessonsResponse.length;
       final publishedLessons = lessonsResponse
           .where((lesson) => lesson['is_published'] == true)
           .length;
+      final draftLessons = totalLessons - publishedLessons;
+
+      debugPrint(
+          '📊 Lesson stats - Total: $totalLessons, Published: $publishedLessons, Drafts: $draftLessons');
+
+      // Get educator's classes (if classes system exists)
+      List<dynamic> classesResponse = [];
+      List<dynamic> enrollmentsResponse = [];
+
+      try {
+        classesResponse = await _client
+            .from('classes')
+            .select('id, subject, grade, educator_id')
+            .eq('educator_id', educatorId);
+
+        debugPrint('🏫 Classes found: ${classesResponse.length}');
+
+        // Get enrollments if classes exist
+        final classIds =
+            classesResponse.map<String>((c) => c['id'] as String).toList();
+        if (classIds.isNotEmpty) {
+          enrollmentsResponse = await _client
+              .from('class_enrollments')
+              .select('class_id, student_code')
+              .inFilter('class_id', classIds);
+          debugPrint('🎓 Enrollments found: ${enrollmentsResponse.length}');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Classes data not available: $e');
+        // Continue without classes data
+      }
+
+      // Get student details - FIXED: query by student_code instead of id
+      List<dynamic> studentsResponse = [];
+      final studentCodes = enrollmentsResponse
+          .map<String>((e) => e['student_code'] as String)
+          .toSet()
+          .toList();
+
+      if (studentCodes.isNotEmpty) {
+        studentsResponse = await _client
+            .from('profiles')
+            .select('id, first_name, last_name, grade, student_code')
+            .inFilter('student_code', studentCodes); // ← FIXED HERE
+        debugPrint('👥 Students found: ${studentsResponse.length}');
+      }
 
       // Process the data
       return _processEducatorData(
@@ -65,11 +96,21 @@ class DashboardService {
         lessonsResponse,
         totalLessons,
         publishedLessons,
+        draftLessons,
       );
     } catch (e) {
-      debugPrint('Error getting educator data: $e');
+      debugPrint('❌ Error getting educator data: $e');
       rethrow;
     }
+  }
+
+  // Helper method to validate UUID format
+  bool _isValidUuid(String uuid) {
+    final uuidRegex = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+      caseSensitive: false,
+    );
+    return uuidRegex.hasMatch(uuid);
   }
 
   Map<String, dynamic> _processEducatorData(
@@ -80,15 +121,18 @@ class DashboardService {
     List<dynamic> lessons,
     int totalLessons,
     int publishedLessons,
+    int draftLessons,
   ) {
-    // Create student map for easy lookup
+    // Create student map for easy lookup - FIXED: use student_code as key
     final studentMap = <String, Map<String, dynamic>>{};
     for (final student in students) {
-      studentMap[student['id']] = {
+      final studentCode = student['student_code'] as String;
+      studentMap[studentCode] = {
         'id': student['id'],
         'first_name': student['first_name'],
         'last_name': student['last_name'],
         'grade': student['grade'],
+        'student_code': studentCode,
       };
     }
 
@@ -98,21 +142,19 @@ class DashboardService {
     final seenStudents = <String>{};
     final subjects = <String>{};
 
-    int totalStudents = 0;
     final uniqueStudents = <String>{};
 
     for (final classData in classes) {
-      final grade = classData['grade'];
-      final subject = classData['subject'];
+      final grade = classData['grade'] as String? ?? 'Unknown Grade';
+      final subject = classData['subject'] as String? ?? 'Unknown Subject';
       subjects.add(subject);
 
       // Get enrollments for this class
       final classEnrollments =
           enrollments.where((e) => e['class_id'] == classData['id']).toList();
 
-      totalStudents += classEnrollments.length;
       for (final enrollment in classEnrollments) {
-        uniqueStudents.add(enrollment['student_code']);
+        uniqueStudents.add(enrollment['student_code'] as String);
       }
 
       // Add to classes by grade
@@ -126,7 +168,7 @@ class DashboardService {
         'student_count': classEnrollments.length,
         'students': classEnrollments
             .map((e) {
-              final studentCode = e['student_code'];
+              final studentCode = e['student_code'] as String;
               return studentMap[studentCode];
             })
             .where((s) => s != null)
@@ -135,7 +177,7 @@ class DashboardService {
 
       // Build unique student list
       for (final enrollment in classEnrollments) {
-        final studentCode = enrollment['student_code'];
+        final studentCode = enrollment['student_code'] as String;
         if (!seenStudents.contains(studentCode) &&
             studentMap.containsKey(studentCode)) {
           seenStudents.add(studentCode);
@@ -151,6 +193,12 @@ class DashboardService {
       return nameA.compareTo(nameB);
     });
 
+    // Extract subjects from lessons
+    final lessonSubjects = lessons
+        .map<String>((lesson) => lesson['subject'] as String? ?? 'Unknown')
+        .toSet()
+        .toList();
+
     return {
       'educator': educator,
       'stats': {
@@ -158,12 +206,22 @@ class DashboardService {
         'total_students': uniqueStudents.length,
         'published_lessons': publishedLessons,
         'total_lessons': totalLessons,
+        'draft_lessons': draftLessons,
+        'completion_rate': totalLessons > 0
+            ? (publishedLessons / totalLessons * 100).round()
+            : 0,
       },
       'classes_by_grade': classesByGrade,
-      'subjects': subjects.toList(),
+      'subjects': lessonSubjects,
       'grades_taught': classesByGrade.keys.toList(),
       'all_students': allStudents,
       'recent_lessons': lessons.take(5).toList(),
+      'debug_info': {
+        'educator_id': educator['id'],
+        'lessons_queried': lessons.length,
+        'classes_queried': classes.length,
+        'students_queried': students.length,
+      },
     };
   }
 
@@ -171,58 +229,43 @@ class DashboardService {
   Future<List<Map<String, dynamic>>> getRecentActivity(
       String educatorId) async {
     try {
-      // Get recent homework submissions
-      final submissionsResponse = await _client
-          .from('homework_submissions')
-          .select('*, lessons(title), profiles(first_name, last_name)')
-          .eq('lessons.educator_id', educatorId)
-          .order('submitted_at', ascending: false)
-          .limit(5);
-
-      // Get upcoming live sessions
-      final now = DateTime.now();
-      final sessionsResponse = await _client
-          .from('live_sessions')
-          .select('*')
-          .eq('educator_id', educatorId)
-          .gte('scheduled_time', now.toIso8601String())
-          .order('scheduled_time', ascending: true)
-          .limit(3);
-
-      // Combine and format activities
       final activities = <Map<String, dynamic>>[];
 
-      // Add submission activities
-      for (final submission in submissionsResponse) {
+      // Get recent lesson creations
+      final recentLessons = await _client
+          .from('lessons')
+          .select('title, created_at, is_published, subject')
+          .eq('educator_id', educatorId)
+          .order('created_at', ascending: false)
+          .limit(3);
+
+      for (final lesson in recentLessons) {
         activities.add({
-          'type': 'submission',
+          'type': 'lesson',
           'title':
-              '${submission['profiles']['first_name']} ${submission['profiles']['last_name']} submitted ${submission['lessons']['title']}',
-          'time':
-              _formatTimeDifference(DateTime.parse(submission['submitted_at'])),
-          'icon': Icons.assignment_turned_in_rounded,
-          'color': const Color(0xFF4ADE80),
+              '${lesson['is_published'] == true ? 'Published' : 'Created'} lesson: ${lesson['title']}',
+          'subtitle': 'Subject: ${lesson['subject']}',
+          'time': _formatTimeDifference(DateTime.parse(lesson['created_at'])),
+          'icon': Icons.video_library_rounded,
+          'color': const Color(0xFF4361EE),
         });
       }
 
-      // Add session activities
-      for (final session in sessionsResponse) {
+      // If no lessons, add a welcome message
+      if (activities.isEmpty) {
         activities.add({
-          'type': 'session',
-          'title': 'Live session "${session['title']}" starting soon',
-          'time':
-              _formatTimeDifference(DateTime.parse(session['scheduled_time'])),
-          'icon': Icons.live_tv_rounded,
-          'color': const Color(0xFFEF4444),
+          'type': 'welcome',
+          'title': 'Welcome to your dashboard!',
+          'subtitle': 'Create your first lesson to get started',
+          'time': 'Just now',
+          'icon': Icons.emoji_events_rounded,
+          'color': const Color(0xFFF59E0B),
         });
       }
 
-      // Sort by time
-      activities.sort((a, b) => b['time'].compareTo(a['time']));
-
-      return activities.take(5).toList();
+      return activities;
     } catch (e) {
-      debugPrint('Error getting recent activity: $e');
+      debugPrint('❌ Error getting recent activity: $e');
       return [];
     }
   }
