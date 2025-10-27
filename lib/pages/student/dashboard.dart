@@ -1,6 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/services/student_service.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -11,6 +13,14 @@ class StudentDashboard extends StatefulWidget {
 
 class _StudentDashboardState extends State<StudentDashboard> {
   int _currentIndex = 0;
+  final StudentService _studentService = StudentService();
+
+  // Data states
+  Map<String, dynamic> _studentProgress = {};
+  List<Map<String, dynamic>> _recommendedLessons = [];
+  List<Map<String, dynamic>> _recentLessons = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   // Custom icons for better visual communication
   final Map<String, IconData> _customIcons = {
@@ -28,6 +38,55 @@ class _StudentDashboardState extends State<StudentDashboard> {
     'time': Icons.access_time,
     'calendar': Icons.calendar_today,
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStudentData();
+  }
+
+  Future<void> _loadStudentData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        // Load data in parallel
+        final progress = await _studentService.getStudentProgress(user.id);
+        final recommended =
+            await _studentService.getRecommendedLessons(user.id);
+
+        setState(() {
+          _studentProgress = progress;
+          _recommendedLessons = recommended;
+          _recentLessons =
+              recommended.take(2).toList(); // Show 2 recent lessons
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'User not authenticated';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to load data: ${e.toString()}';
+      });
+    }
+  }
+
+  void _navigateToLesson(Map<String, dynamic> lesson) {
+    Navigator.pushNamed(
+      context,
+      '/student/lesson',
+      arguments: lesson,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,23 +109,54 @@ class _StudentDashboardState extends State<StudentDashboard> {
           _buildIconButton(_customIcons['settings']!),
         ],
       ),
-      body: _buildBody(),
+      body: _isLoading
+          ? _buildLoadingState()
+          : _errorMessage != null
+              ? _buildErrorState()
+              : _buildBody(),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
-  Widget _buildIconButton(IconData icon) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      child: IconButton(
-        icon: Icon(icon, color: _getTextColor().withOpacity(0.7)),
-        onPressed: () {},
-        style: IconButton.styleFrom(
-          backgroundColor: _getCardColor().withOpacity(0.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Loading your dashboard...'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+          const SizedBox(height: 16),
+          const Text(
+            'Failed to load dashboard',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-        ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              _errorMessage ?? 'Unknown error occurred',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadStudentData,
+            child: const Text('Try Again'),
+          ),
+        ],
       ),
     );
   }
@@ -100,41 +190,55 @@ class _StudentDashboardState extends State<StudentDashboard> {
           _buildProgressSection(),
           const SizedBox(height: 24),
 
-          // Today's Activities
-          _buildSectionHeader('Today\'s Activities'),
-          const SizedBox(height: 16),
-          _buildActivityCard(
-            'Algebra Basics',
-            'Math',
-            Icons.calculate,
-            '15 min',
-            'Watch Now',
-            const Color(0xFF2196F3),
-            onTap: () => Navigator.pushNamed(context, '/student/lesson'),
-          ),
-          const SizedBox(height: 12),
-          _buildActivityCard(
-            'Science Lab Report',
-            'Science',
-            Icons.science,
-            '30 min',
-            'Record Video',
-            const Color(0xFFFF9800),
-            onTap: () => Navigator.pushNamed(context, '/student/homework'),
-          ),
-          const SizedBox(height: 24),
+          // Today's Activities (Recommended Lessons)
+          if (_recommendedLessons.isNotEmpty) ...[
+            _buildSectionHeader('Recommended for You'),
+            const SizedBox(height: 16),
+            ..._recommendedLessons.take(2).map(
+                  (lesson) => _buildActivityCard(
+                    lesson['title'] ?? 'Untitled Lesson',
+                    lesson['subject'] ?? 'General',
+                    _getSubjectIcon(lesson['subject']),
+                    '${lesson['duration_minutes'] ?? 15} min',
+                    'Watch Now',
+                    _getSubjectColor(lesson['subject']),
+                    onTap: () => _navigateToLesson(lesson),
+                  ),
+                ),
+            const SizedBox(height: 12),
+          ],
 
-          // Upcoming Sessions
-          _buildSectionHeader('Live Sessions Today'),
+          // Recent Activity
+          if (_recentLessons.isNotEmpty) ...[
+            _buildSectionHeader('Continue Learning'),
+            const SizedBox(height: 16),
+            ..._recentLessons.map(
+              (lesson) => _buildActivityCard(
+                lesson['title'] ?? 'Untitled Lesson',
+                lesson['subject'] ?? 'General',
+                _getSubjectIcon(lesson['subject']),
+                '${lesson['duration_minutes'] ?? 15} min',
+                'Continue',
+                _getSubjectColor(lesson['subject']),
+                onTap: () => _navigateToLesson(lesson),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Quick Access Subjects
+          _buildSectionHeader('Browse Subjects'),
           const SizedBox(height: 16),
-          _buildSessionItem('Math Help Session', '3:00 PM', Icons.calculate),
-          _buildSessionItem('Science Review', '4:30 PM', Icons.science),
+          _buildSubjectGrid(),
         ],
       ),
     );
   }
 
   Widget _buildWelcomeSection() {
+    final user = Supabase.instance.client.auth.currentUser;
+    final userName = user?.userMetadata?['full_name'] ?? 'Student';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -169,7 +273,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome Back!',
+                  'Welcome Back, $userName!',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -178,7 +282,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Grade 10 • 85% Complete',
+                  'Grade 10 • ${_studentProgress['progress_percentage'] ?? 0}% Complete',
                   style: TextStyle(
                     fontSize: 14,
                     color: _getTextColor().withOpacity(0.6),
@@ -193,6 +297,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildProgressSection() {
+    final progress = _studentProgress['progress_percentage'] ?? 0;
+    final completed = _studentProgress['completed_lessons'] ?? 0;
+    final total = _studentProgress['total_lessons'] ?? 0;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -239,7 +347,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
               ),
               Container(
                 height: 8,
-                width: MediaQuery.of(context).size.width * 0.85,
+                width:
+                    MediaQuery.of(context).size.width * (progress / 100) * 0.85,
                 decoration: BoxDecoration(
                   color: const Color(0xFF4CAF50),
                   borderRadius: BorderRadius.circular(4),
@@ -252,15 +361,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Overall Progress',
+                '$completed of $total lessons completed',
                 style: TextStyle(
                   fontSize: 14,
                   color: _getTextColor().withOpacity(0.6),
                 ),
               ),
-              const Text(
-                '85%',
-                style: TextStyle(
+              Text(
+                '$progress%',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF4CAF50),
@@ -297,6 +406,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: _getCardColor(),
@@ -332,6 +442,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       fontWeight: FontWeight.w600,
                       color: _getTextColor(),
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -389,74 +501,132 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  Widget _buildSessionItem(String title, String time, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _getCardColor(),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _getBorderColor()),
+  Widget _buildSubjectGrid() {
+    final subjects = [
+      {
+        'name': 'Mathematics',
+        'icon': Icons.calculate,
+        'color': const Color(0xFF2196F3)
+      },
+      {
+        'name': 'Science',
+        'icon': Icons.science,
+        'color': const Color(0xFFFF9800)
+      },
+      {
+        'name': 'History',
+        'icon': Icons.history,
+        'color': const Color(0xFF4CAF50)
+      },
+      {
+        'name': 'Languages',
+        'icon': Icons.language,
+        'color': const Color(0xFF9C27B0)
+      },
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.5,
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+      itemCount: subjects.length,
+      itemBuilder: (context, index) {
+        final subject = subjects[index];
+        return _buildSubjectCard(
+          subject['name'] as String,
+          subject['icon'] as IconData,
+          subject['color'] as Color,
+        );
+      },
+    );
+  }
+
+  Widget _buildSubjectCard(String name, IconData icon, Color color) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to subject lessons
+        Navigator.pushNamed(
+          context,
+          '/student/subject-lessons',
+          arguments: name,
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: _getCardColor(),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: _getTextColor(),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  time,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _getTextColor().withOpacity(0.6),
-                  ),
-                ),
-              ],
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
+            const SizedBox(height: 8),
+            Text(
+              name,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _getTextColor(),
+              ),
             ),
-            child: const Row(
-              children: [
-                Icon(Icons.circle, color: Colors.green, size: 8),
-                SizedBox(width: 6),
-                Text(
-                  'LIVE',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF4CAF50),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  IconData _getSubjectIcon(String? subject) {
+    switch (subject?.toLowerCase()) {
+      case 'mathematics':
+      case 'math':
+        return Icons.calculate;
+      case 'science':
+        return Icons.science;
+      case 'history':
+        return Icons.history;
+      case 'languages':
+      case 'language':
+        return Icons.language;
+      default:
+        return Icons.school;
+    }
+  }
+
+  Color _getSubjectColor(String? subject) {
+    switch (subject?.toLowerCase()) {
+      case 'mathematics':
+      case 'math':
+        return const Color(0xFF2196F3);
+      case 'science':
+        return const Color(0xFFFF9800);
+      case 'history':
+        return const Color(0xFF4CAF50);
+      case 'languages':
+      case 'language':
+        return const Color(0xFF9C27B0);
+      default:
+        return const Color(0xFF607D8B);
+    }
   }
 
   Widget _buildLiveSessionsTab() {
@@ -485,7 +655,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       'Profile',
       'Manage your account and progress',
       'Edit Profile',
-      () {},
+      () => Navigator.pushNamed(context, '/student/profile'),
     );
   }
 
@@ -560,6 +730,22 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
+  Widget _buildIconButton(IconData icon) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      child: IconButton(
+        icon: Icon(icon, color: _getTextColor().withOpacity(0.7)),
+        onPressed: () {},
+        style: IconButton.styleFrom(
+          backgroundColor: _getCardColor().withOpacity(0.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
   BottomNavigationBar _buildBottomNavigationBar() {
     return BottomNavigationBar(
       currentIndex: _currentIndex,
@@ -570,21 +756,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
       unselectedItemColor: _getTextColor().withOpacity(0.5),
       selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
       unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-      items: [
+      items: const [
         BottomNavigationBarItem(
-          icon: Icon(_customIcons['home']!),
+          icon: Icon(Icons.dashboard),
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(_customIcons['live']!),
+          icon: Icon(Icons.live_tv),
           label: 'Live',
         ),
         BottomNavigationBarItem(
-          icon: Icon(_customIcons['assignments']!),
+          icon: Icon(Icons.assignment_turned_in),
           label: 'Assignments',
         ),
         BottomNavigationBarItem(
-          icon: Icon(_customIcons['profile']!),
+          icon: Icon(Icons.account_circle),
           label: 'Profile',
         ),
       ],
