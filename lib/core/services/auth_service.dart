@@ -5,199 +5,167 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AuthService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  // STUDENT: One-tap login with student code (no password needed)
-  Future<AuthResponse?> studentLogin(String studentCode) async {
+  // EDUCATOR: Sign up with pre-verified accounts
+  Future<AuthResponse?> educatorSignUp(String email, String password) async {
+    try {
+      debugPrint('🔄 Attempting educator signup: $email');
+
+      // Check if educator exists in pre_verified_users
+      final preVerifiedResponse = await _client
+          .from('pre_verified_users')
+          .select()
+          .eq('email', email)
+          .eq('role', 'educator')
+          .maybeSingle();
+
+      if (preVerifiedResponse == null) {
+        throw Exception('Email not found in pre-verified educators list.');
+      }
+
+      // Check if pre-verified user is already used
+      if (preVerifiedResponse['is_used'] == true) {
+        throw Exception(
+            'Educator account already exists. Please sign in instead.');
+      }
+
+      // Sign up with Supabase Auth
+      final authResponse = await _client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'role': 'educator',
+          'first_name': preVerifiedResponse['first_name'],
+          'last_name': preVerifiedResponse['last_name'],
+          'grade': preVerifiedResponse['grade'],
+          'school_name': preVerifiedResponse['school_name'],
+        },
+      );
+
+      if (authResponse.user == null) {
+        if (authResponse.user?.identities?.isEmpty ?? true) {
+          throw Exception(
+              'Educator account already exists. Please sign in instead.');
+        }
+        throw Exception('Signup failed. Please try again.');
+      }
+
+      // Mark pre-verified user as used
+      await _client
+          .from('pre_verified_users')
+          .update({'is_used': true}).eq('email', email);
+
+      debugPrint(
+          '✅ Educator signup successful for: ${preVerifiedResponse['first_name']} ${preVerifiedResponse['last_name']}');
+      return authResponse;
+    } catch (e) {
+      debugPrint('❌ Educator signup error: $e');
+
+      if (e.toString().contains('User already registered') ||
+          e.toString().contains('already exists') ||
+          e.toString().contains('identity_id')) {
+        throw Exception(
+            'Educator account already exists. Please sign in instead.');
+      } else {
+        throw Exception(
+            'Signup failed: ${e.toString().replaceAll('Exception: ', '')}');
+      }
+    }
+  }
+
+  // EDUCATOR: Login with existing accounts
+  Future<AuthResponse?> educatorLogin(String email, String password) async {
+    try {
+      debugPrint('🔄 Attempting educator login: $email');
+
+      // Sign in with Supabase Auth
+      final authResponse = await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      if (authResponse.user == null) {
+        throw Exception('Invalid email or password');
+      }
+
+      // Verify educator has a profile
+      final educatorProfile = await _client
+          .from('profiles')
+          .select()
+          .eq('id', authResponse.user!.id)
+          .eq('role', 'educator')
+          .maybeSingle();
+
+      if (educatorProfile == null) {
+        await _client.auth.signOut();
+        throw Exception('Educator profile not found');
+      }
+
+      debugPrint(
+          '✅ Educator login successful: ${educatorProfile['first_name']} ${educatorProfile['last_name']}');
+      return authResponse;
+    } catch (e) {
+      debugPrint('❌ Educator login error: $e');
+
+      if (e.toString().contains('Invalid login credentials')) {
+        throw Exception('Invalid email or password');
+      } else if (e.toString().contains('Email not confirmed')) {
+        throw Exception('Please verify your email address');
+      } else {
+        throw Exception(
+            'Educator login failed: ${e.toString().replaceAll('Exception: ', '')}');
+      }
+    }
+  }
+
+  // STUDENT: Simplified login with student code only
+  Future<Map<String, dynamic>?> studentLogin(String studentCode) async {
     try {
       debugPrint('🔄 Attempting student login with code: $studentCode');
 
-      // 1. Check if student exists in pre_verified_users
       final preVerifiedResponse = await _client
           .from('pre_verified_users')
           .select()
           .eq('student_code', studentCode)
           .eq('role', 'student')
-          .eq('is_used', false)
           .maybeSingle();
 
       if (preVerifiedResponse == null) {
-        throw Exception('Student code not found or already used');
+        throw Exception('Student code not found in our records');
       }
 
-      final studentData = preVerifiedResponse;
-      debugPrint(
-          '✅ Student found: ${studentData['first_name']} ${studentData['last_name']}');
+      final classEnrollments =
+          await _client.from('class_enrollments').select('''
+            class_id,
+            classes (
+              id,
+              grade,
+              subject,
+              educator_id,
+              profiles!classes_educator_id_fkey (
+                first_name,
+                last_name
+              )
+            )
+          ''').eq('student_code', studentCode);
 
-      // 2. Generate unique email and simple password
-      final studentEmail = '$studentCode@signsync.academy';
-      const studentPassword = 'welcome123'; // Simple universal password
-
-      // 3. Try to sign in first (in case account already exists)
-      try {
-        final loginResponse = await _client.auth.signInWithPassword(
-          email: studentEmail,
-          password: studentPassword,
-        );
-
-        debugPrint('✅ Student logged in with existing account');
-        return loginResponse;
-      } catch (signInError) {
-        // If sign in fails, create new account
-        debugPrint('🔄 Creating new student account...');
-
-        final authResponse = await _client.auth.signUp(
-          email: studentEmail,
-          password: studentPassword,
-        );
-
-        if (authResponse.user == null) {
-          throw Exception('Failed to create auth account');
-        }
-
-        debugPrint('✅ Auth account created for student');
-
-        // 4. Create profile
-        await _client.from('profiles').insert({
-          'id': authResponse.user!.id,
-          'role': 'student',
-          'first_name': studentData['first_name'],
-          'last_name': studentData['last_name'],
-          'grade': studentData['grade'],
-          'school_name': studentData['school_name'],
-          'student_code': studentCode,
-        });
-
-        // 5. Mark pre-verified user as used
-        await _client
-            .from('pre_verified_users')
-            .update({'is_used': true}).eq('student_code', studentCode);
-
-        debugPrint('✅ Student profile created and marked as used');
-
-        // 6. Automatically log them in
-        final finalLoginResponse = await _client.auth.signInWithPassword(
-          email: studentEmail,
-          password: studentPassword,
-        );
-
-        debugPrint('✅ Student logged in successfully');
-        return finalLoginResponse;
-      }
+      debugPrint('✅ Student login successful');
+      return {
+        'student_info': preVerifiedResponse,
+        'enrollments': classEnrollments,
+        'login_type': 'student'
+      };
     } catch (e) {
       debugPrint('❌ Student login error: $e');
       throw Exception('Student login failed: $e');
     }
   }
 
-  // EDUCATOR: Standard email/password registration
-  Future<AuthResponse?> educatorSignUp({
-    required String email,
-    required String password,
-    required String confirmPassword,
-  }) async {
+  // PARENT: Login with student code validation
+  Future<Map<String, dynamic>?> parentLogin(String studentCode) async {
     try {
-      debugPrint('🔄 Attempting educator signup with email: $email');
+      debugPrint('🔄 Attempting parent login for student: $studentCode');
 
-      if (password != confirmPassword) {
-        throw Exception('Passwords do not match');
-      }
-
-      // 1. Check if educator is pre-verified
-      final preVerifiedResponse = await _client
-          .from('pre_verified_users')
-          .select()
-          .eq('email', email)
-          .eq('role', 'educator')
-          .eq('is_used', false)
-          .maybeSingle();
-
-      if (preVerifiedResponse == null) {
-        throw Exception(
-            'Educator email not found in school records or already registered');
-      }
-
-      final educatorData = preVerifiedResponse;
-      debugPrint(
-          '✅ Educator found: ${educatorData['first_name']} ${educatorData['last_name']}');
-
-      // 2. Try to sign in first (in case account exists)
-      try {
-        final loginResponse = await _client.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
-
-        debugPrint('✅ Educator logged in with existing account');
-        return loginResponse;
-      } catch (signInError) {
-        // If sign in fails, create new account
-        debugPrint('🔄 Creating new educator account...');
-
-        final authResponse = await _client.auth.signUp(
-          email: email,
-          password: password,
-        );
-
-        if (authResponse.user == null) {
-          throw Exception('Failed to create auth account');
-        }
-
-        debugPrint('✅ Auth account created for educator');
-
-        // 3. Create profile
-        await _client.from('profiles').insert({
-          'id': authResponse.user!.id,
-          'role': 'educator',
-          'first_name': educatorData['first_name'],
-          'last_name': educatorData['last_name'],
-          'grade': educatorData['grade'],
-          'school_name': educatorData['school_name'],
-        });
-
-        // 4. Mark as used
-        await _client
-            .from('pre_verified_users')
-            .update({'is_used': true}).eq('email', email);
-
-        debugPrint('✅ Educator profile created and marked as used');
-        return authResponse;
-      }
-    } catch (e) {
-      debugPrint('❌ Educator signup error: $e');
-      throw Exception('Educator registration failed: $e');
-    }
-  }
-
-  // EDUCATOR: Login (after initial signup)
-  Future<AuthResponse?> educatorLogin(String email, String password) async {
-    try {
-      final response = await _client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-      return response;
-    } catch (e) {
-      throw Exception('Login failed: $e');
-    }
-  }
-
-  // PARENT: Registration with student code validation
-  Future<AuthResponse?> parentSignUp({
-    required String email,
-    required String password,
-    required String confirmPassword,
-    required String studentCode,
-    required String firstName,
-    required String lastName,
-    String? phoneNumber,
-  }) async {
-    try {
-      debugPrint('🔄 Attempting parent signup for student code: $studentCode');
-
-      if (password != confirmPassword) {
-        throw Exception('Passwords do not match');
-      }
-
-      // 1. Verify student exists in pre_verified_users
+      // Verify student exists
       final studentResponse = await _client
           .from('pre_verified_users')
           .select()
@@ -210,189 +178,121 @@ class AuthService {
       }
 
       final studentData = studentResponse;
-      debugPrint(
-          '✅ Student found: ${studentData['first_name']} ${studentData['last_name']}');
 
-      // 2. Check if parent already exists for this student
-      final existingParent = await _client
-          .from('profiles')
-          .select()
-          .eq('linked_student_code', studentCode)
-          .eq('role', 'parent')
-          .maybeSingle();
-
-      if (existingParent != null) {
-        throw Exception('A parent account already exists for this student');
-      }
-
-      // 3. Try to sign in first (in case account exists)
-      try {
-        final loginResponse = await _client.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
-
-        debugPrint('✅ Parent logged in with existing account');
-        return loginResponse;
-      } catch (signInError) {
-        // If sign in fails, create new account
-        debugPrint('🔄 Creating new parent account...');
-
-        // 4. Create auth account
-        final authResponse = await _client.auth.signUp(
-          email: email,
-          password: password,
-        );
-
-        if (authResponse.user == null) {
-          throw Exception('Failed to create auth account');
-        }
-
-        debugPrint('✅ Auth account created for parent');
-
-        // 5. Create parent profile linked to student
-        await _client.from('profiles').insert({
-          'id': authResponse.user!.id,
-          'role': 'parent',
-          'first_name': firstName,
-          'last_name': lastName,
-          'linked_student_code': studentCode,
-          'phone_number': phoneNumber,
-        });
-
-        debugPrint(
-            '✅ Parent profile created and linked to student: $studentCode');
-        return authResponse;
-      }
-    } catch (e) {
-      debugPrint('❌ Parent signup error: $e');
-      throw Exception('Parent registration failed: $e');
-    }
-  }
-
-  // PARENT: Login with student code validation
-  Future<AuthResponse?> parentLogin({
-    required String email,
-    required String password,
-    required String studentCode,
-  }) async {
-    try {
-      debugPrint('🔄 Attempting parent login for student code: $studentCode');
-
-      // 1. Verify credentials
-      final authResponse = await _client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-
-      if (authResponse.user == null) {
-        throw Exception('Invalid email or password');
-      }
-
-      // 2. Verify parent is linked to the student code
-      final parentProfile = await _client
-          .from('profiles')
-          .select()
-          .eq('id', authResponse.user!.id)
-          .eq('role', 'parent')
-          .eq('linked_student_code', studentCode)
-          .maybeSingle();
-
-      if (parentProfile == null) {
-        // Sign out since the student code doesn't match
-        await _client.auth.signOut();
-        throw Exception('Parent account is not linked to this student code');
-      }
-
-      // 3. Verify student exists
-      final studentExists = await _client
-          .from('pre_verified_users')
-          .select()
-          .eq('student_code', studentCode)
-          .eq('role', 'student')
-          .maybeSingle();
-
-      if (studentExists == null) {
-        throw Exception('Student code not found in our records');
-      }
+      // Get student's classes and progress
+      final classEnrollments =
+          await _client.from('class_enrollments').select('''
+            class_id,
+            classes (
+              id,
+              grade,
+              subject,
+              educator_id,
+              profiles!classes_educator_id_fkey (
+                first_name,
+                last_name
+              )
+            )
+          ''').eq('student_code', studentCode);
 
       debugPrint('✅ Parent login successful for student: $studentCode');
-      return authResponse;
+
+      return {
+        'student_info': studentData,
+        'enrollments': classEnrollments,
+        'login_type': 'parent'
+      };
     } catch (e) {
       debugPrint('❌ Parent login error: $e');
       throw Exception('Parent login failed: $e');
     }
   }
 
-  // PARENT: Get linked student information
-  Future<Map<String, dynamic>?> getLinkedStudentInfo(String parentId) async {
+  // EDUCATOR: Get educator's classes and students
+  Future<Map<String, dynamic>?> getEducatorClasses(String educatorId) async {
     try {
-      // Get parent's linked student code
-      final parentProfile = await _client
-          .from('profiles')
-          .select('linked_student_code')
-          .eq('id', parentId)
-          .eq('role', 'parent')
-          .maybeSingle();
+      final classes = await _client.from('classes').select('''
+            *,
+            class_enrollments (
+              student_code,
+              pre_verified_users!class_enrollments_student_code_fkey (
+                first_name,
+                last_name,
+                grade
+              )
+            )
+          ''').eq('educator_id', educatorId).eq('academic_year', '2024');
 
-      if (parentProfile == null ||
-          parentProfile['linked_student_code'] == null) {
-        return null;
+      int totalStudents = 0;
+      int totalClasses = classes.length;
+
+      for (var classData in classes) {
+        final enrollments = classData['class_enrollments'] as List?;
+        totalStudents += enrollments?.length ?? 0;
       }
 
-      final studentCode = parentProfile['linked_student_code'];
+      return {
+        'classes': classes,
+        'total_classes': totalClasses,
+        'total_students': totalStudents,
+      };
+    } catch (e) {
+      debugPrint('❌ Error getting educator classes: $e');
+      return null;
+    }
+  }
 
-      // Get student info from pre_verified_users
-      final studentInfo = await _client
+  // EDUCATOR: Get educator profile
+  Future<Map<String, dynamic>?> getEducatorProfile(String educatorId) async {
+    try {
+      final profile = await _client
+          .from('profiles')
+          .select()
+          .eq('id', educatorId)
+          .eq('role', 'educator')
+          .maybeSingle();
+
+      return profile;
+    } catch (e) {
+      debugPrint('❌ Error getting educator profile: $e');
+      return null;
+    }
+  }
+
+  // Get student profile by student code
+  Future<Map<String, dynamic>?> getStudentProfile(String studentCode) async {
+    try {
+      final profile = await _client
           .from('pre_verified_users')
           .select()
           .eq('student_code', studentCode)
           .eq('role', 'student')
           .maybeSingle();
 
-      return studentInfo;
+      return profile;
     } catch (e) {
-      debugPrint('❌ Error getting linked student info: $e');
+      debugPrint('❌ Error getting student profile: $e');
       return null;
     }
   }
 
-  // PARENT: Get child's progress and assignments
-  Future<Map<String, dynamic>?> getChildProgress(String studentCode) async {
+  // Get student attendance data
+  Future<List<dynamic>?> getStudentAttendance(String studentCode) async {
     try {
-      // This would join multiple tables to get comprehensive progress
-      // For now, return basic student info
-      final studentInfo = await _client
-          .from('pre_verified_users')
-          .select('first_name, last_name, grade, school_name')
-          .eq('student_code', studentCode)
-          .eq('role', 'student')
-          .maybeSingle();
+      final attendance = await _client.from('attendance').select('''
+            *,
+            classes (
+              subject,
+              grade
+            )
+          ''').eq('student_code', studentCode).order('date', ascending: false);
 
-      if (studentInfo == null) {
-        return null;
-      }
-
-      // TODO: Add actual progress tracking queries here
-      // - Completed lessons
-      // - Assignment submissions
-      // - Grades
-      // - Attendance
-
-      return {
-        'student_info': studentInfo,
-        'completed_lessons': 0, // Placeholder
-        'pending_assignments': 0, // Placeholder
-        'average_grade': 'N/A', // Placeholder
-      };
+      return attendance;
     } catch (e) {
-      debugPrint('❌ Error getting child progress: $e');
+      debugPrint('❌ Error getting student attendance: $e');
       return null;
     }
   }
-
-  // COMMON: Check if user is logged in
-  User? get currentUser => _client.auth.currentUser;
 
   // COMMON: Sign out
   Future<void> signOut() async {
@@ -400,14 +300,15 @@ class AuthService {
     debugPrint('✅ User signed out');
   }
 
-  // COMMON: Get user profile
-  Future<Map<String, dynamic>?> getUserProfile() async {
-    final user = _client.auth.currentUser;
-    if (user == null) return null;
+  // Check if user is educator (has auth session)
+  bool get isEducatorLoggedIn => _client.auth.currentUser != null;
 
-    final response =
-        await _client.from('profiles').select().eq('id', user.id).maybeSingle();
+  // Get current user (for educators)
+  User? get currentUser => _client.auth.currentUser;
 
-    return response;
-  }
+  // Check if user session is valid
+  bool get hasValidSession => _client.auth.currentSession != null;
+
+  // Get current session
+  Session? get currentSession => _client.auth.currentSession;
 }

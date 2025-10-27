@@ -66,7 +66,9 @@ class SignSyncApp extends StatelessWidget {
 
         // Educator Content Creation Routes
         '/educator/create-lesson': (context) => const LessonCreation(),
-        '/educator/video-editor': (context) => const VideoEditor(),
+        '/educator/video-editor': (context) => const VideoEditor(
+              filePath: '',
+            ),
 
         // Educator Management Routes
         '/educator/content-management': (context) => const ContentManagement(),

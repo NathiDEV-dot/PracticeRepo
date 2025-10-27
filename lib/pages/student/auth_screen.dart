@@ -27,15 +27,22 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
     });
 
     try {
-      final user =
-          await _authService.studentLogin(_studentCodeController.text.trim());
+      final studentData = await _authService.studentLogin(
+        _studentCodeController.text.trim().toUpperCase(),
+      );
 
-      if (user != null) {
-        _showSuccess('Welcome to SignSync Academy!');
-        // Navigate to student dashboard after a brief delay
+      if (studentData != null) {
+        final studentInfo = studentData['student_info'];
+        _showSuccess('Welcome back, ${studentInfo['first_name']}!');
+
+        // Navigate to student dashboard with data
         await Future.delayed(const Duration(seconds: 1));
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/student/dashboard');
+          Navigator.pushReplacementNamed(
+            context,
+            '/student/dashboard',
+            arguments: studentData,
+          );
         }
       }
     } catch (e) {
@@ -54,6 +61,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -123,7 +131,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Icon(
-                            Icons.person_rounded,
+                            Icons.school_rounded,
                             color: Color(0xFF4CAF50),
                             size: 40,
                           ),
@@ -132,7 +140,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
 
                         // Title
                         const Text(
-                          'Student Login',
+                          'Student Portal',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
@@ -143,7 +151,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
 
                         // Subtitle
                         const Text(
-                          'Enter your student code to enter the classroom',
+                          'Enter your student code to access your classes',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
@@ -158,7 +166,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                           decoration: InputDecoration(
                             labelText: 'Student Code',
                             hintText: 'TOD001',
-                            prefixIcon: const Icon(Icons.code_rounded),
+                            prefixIcon: const Icon(Icons.badge_rounded),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -166,19 +174,27 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                             fillColor: Colors.grey[50],
                           ),
                           style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w500),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 1.2,
+                          ),
                           textAlign: TextAlign.center,
+                          textCapitalization: TextCapitalization.characters,
                           onFieldSubmitted: (_) => _loginAsStudent(),
                         ),
                         const SizedBox(height: 20),
 
                         // Help text
-                        const Text(
-                          'Your teacher will give you your student code',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                            fontStyle: FontStyle.italic,
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 20),
+                          child: Text(
+                            'Use your assigned student code (e.g., TOD001, TOD002, etc.)',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 40),
@@ -212,6 +228,37 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
                                     ),
                                   ),
                                 ),
+                        ),
+
+                        // Demo hint
+                        const SizedBox(height: 30),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue[100]!),
+                          ),
+                          child: const Column(
+                            children: [
+                              Text(
+                                'Demo Student Codes:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'TOD001 (Grade 1) to TOD096 (Grade 12)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

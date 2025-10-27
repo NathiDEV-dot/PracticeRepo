@@ -2,7 +2,6 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:signsync_academy/core/services/auth_service.dart';
 
 class ParentAuthScreen extends StatefulWidget {
@@ -14,42 +13,9 @@ class ParentAuthScreen extends StatefulWidget {
 
 class _ParentAuthScreenState extends State<ParentAuthScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _surnameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _studentCodeController = TextEditingController();
-  final _phoneController = TextEditingController();
-
   final AuthService _authService = AuthService();
   bool _isLoading = false;
-  bool _isLoginMode = true;
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
-
-  void _toggleAuthMode() {
-    setState(() {
-      _isLoginMode = !_isLoginMode;
-      _passwordController.clear();
-      _confirmPasswordController.clear();
-      _studentCodeController.clear();
-      _obscurePassword = true;
-      _obscureConfirmPassword = true;
-    });
-  }
-
-  void _togglePasswordVisibility() {
-    setState(() {
-      _obscurePassword = !_obscurePassword;
-    });
-  }
-
-  void _toggleConfirmPasswordVisibility() {
-    setState(() {
-      _obscureConfirmPassword = !_obscureConfirmPassword;
-    });
-  }
 
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
@@ -58,39 +24,20 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
       });
 
       try {
-        AuthResponse? authResponse;
+        final parentData =
+            await _authService.parentLogin(_studentCodeController.text.trim());
 
-        if (_isLoginMode) {
-          // Login existing parent
-          authResponse = await _authService.parentLogin(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-            studentCode: _studentCodeController.text.trim().toUpperCase(),
-          );
-        } else {
-          // Register new parent
-          authResponse = await _authService.parentSignUp(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-            confirmPassword: _confirmPasswordController.text,
-            studentCode: _studentCodeController.text.trim().toUpperCase(),
-            firstName: _nameController.text.trim(),
-            lastName: _surnameController.text.trim(),
-            phoneNumber: _phoneController.text.trim().isNotEmpty
-                ? _phoneController.text.trim()
-                : null,
-          );
-        }
+        if (parentData != null) {
+          _showSuccess('Access granted! Loading student information...');
 
-        if (authResponse != null && authResponse.user != null) {
-          _showSuccess(_isLoginMode
-              ? 'Welcome back! Connected to your child\'s account.'
-              : 'Parent account created successfully! Linked to your child.');
-
-          // Navigate to dashboard after a brief delay
+          // Navigate to parent dashboard
           await Future.delayed(const Duration(seconds: 1));
           if (mounted) {
-            Navigator.pushReplacementNamed(context, '/parent/dashboard');
+            Navigator.pushReplacementNamed(
+              context,
+              '/parent/dashboard',
+              arguments: parentData,
+            );
           }
         }
       } catch (e) {
@@ -103,6 +50,12 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         }
       }
     }
+  }
+
+  void _fillDemoCode() {
+    setState(() {
+      _studentCodeController.text = 'TOD001';
+    });
   }
 
   void _showError(String message) {
@@ -120,6 +73,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -127,12 +81,12 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFF9800),
+      backgroundColor: const Color(0xFF667EEA),
       body: SafeArea(
         child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFFF9800), Color(0xFFF57C00)],
+              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -150,9 +104,9 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      _isLoginMode ? 'Parent Login' : 'Parent Registration',
-                      style: const TextStyle(
+                    const Text(
+                      'Parent Access',
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -185,159 +139,53 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                           _buildHeader(),
                           const SizedBox(height: 32),
 
-                          // Student Code Field (for both login and signup)
+                          // Student Code Field
                           _buildTextFieldWithIcon(
                             controller: _studentCodeController,
-                            label: "Child's Student Code",
-                            hintText: 'TOD001, TOD002, etc.',
-                            icon: Icons.code_rounded,
-                            textInputAction: TextInputAction.next,
+                            label: 'Student Code',
+                            hintText: 'Enter student code (e.g., TOD001)',
+                            icon: Icons.person_rounded,
+                            keyboardType: TextInputType.text,
+                            textInputAction: TextInputAction.done,
                             validator: (value) {
                               if (value!.isEmpty) {
-                                return 'Please enter your child\'s student code';
+                                return 'Please enter student code';
                               }
                               if (!value.toUpperCase().startsWith('TOD')) {
-                                return 'Please enter a valid student code (starts with TOD)';
+                                return 'Please enter a valid student code';
                               }
                               return null;
                             },
                           ),
                           const SizedBox(height: 20),
 
-                          // Parent Information (only for signup)
-                          if (!_isLoginMode) ...[
-                            _buildSectionHeader('Parent Information'),
-                            const SizedBox(height: 20),
-                            _buildTextFieldWithIcon(
-                              controller: _nameController,
-                              label: 'First Name',
-                              hintText: 'Enter your first name',
-                              icon: Icons.person,
-                              textInputAction: TextInputAction.next,
-                              validator: (value) => value!.isEmpty
-                                  ? 'Please enter your first name'
-                                  : null,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildTextFieldWithIcon(
-                              controller: _surnameController,
-                              label: 'Last Name',
-                              hintText: 'Enter your last name',
-                              icon: Icons.person_outline,
-                              textInputAction: TextInputAction.next,
-                              validator: (value) => value!.isEmpty
-                                  ? 'Please enter your last name'
-                                  : null,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildTextFieldWithIcon(
-                              controller: _phoneController,
-                              label: 'Phone Number (Optional)',
-                              hintText: '+27 12 345 6789',
-                              icon: Icons.phone,
-                              keyboardType: TextInputType.phone,
-                              textInputAction: TextInputAction.next,
-                              validator: (value) => null, // Optional field
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-
-                          // Email Field
-                          _buildTextFieldWithIcon(
-                            controller: _emailController,
-                            label: 'Email Address',
-                            hintText: 'your.email@example.com',
-                            icon: Icons.email,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter email address';
-                              }
-                              if (!value.contains('@') ||
-                                  !value.contains('.')) {
-                                return 'Please enter a valid email address';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Password Field
-                          _buildTextFieldWithIcon(
-                            controller: _passwordController,
-                            label: 'Password',
-                            hintText: 'Enter your password',
-                            icon: Icons.lock,
-                            isPassword: _obscurePassword,
-                            textInputAction: _isLoginMode
-                                ? TextInputAction.done
-                                : TextInputAction.next,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: _getIconColor(),
-                              ),
-                              onPressed: _togglePasswordVisibility,
-                            ),
-                            onFieldSubmitted: (_) {
-                              if (_isLoginMode) {
-                                _submitForm();
-                              }
-                            },
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return 'Please enter password';
-                              }
-                              if (value.length < 6) {
-                                return 'Password must be at least 6 characters';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Confirm Password Field (only for signup)
-                          if (!_isLoginMode)
-                            _buildTextFieldWithIcon(
-                              controller: _confirmPasswordController,
-                              label: 'Confirm Password',
-                              hintText: 'Confirm your password',
-                              icon: Icons.lock_outline,
-                              isPassword: _obscureConfirmPassword,
-                              textInputAction: TextInputAction.done,
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscureConfirmPassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  color: _getIconColor(),
+                          // Demo Code Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _isLoading ? null : _fillDemoCode,
+                              icon: const Icon(Icons.visibility_rounded,
+                                  size: 18),
+                              label: const Text('Fill Demo Student Code'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF667EEA),
+                                side:
+                                    const BorderSide(color: Color(0xFF667EEA)),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                onPressed: _toggleConfirmPasswordVisibility,
                               ),
-                              onFieldSubmitted: (_) => _submitForm(),
-                              validator: (value) {
-                                if (value!.isEmpty) {
-                                  return 'Please confirm password';
-                                }
-                                if (value != _passwordController.text) {
-                                  return 'Passwords do not match';
-                                }
-                                return null;
-                              },
                             ),
-
-                          if (!_isLoginMode) const SizedBox(height: 20),
+                          ),
+                          const SizedBox(height: 10),
 
                           // Info Text
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             child: Text(
-                              _isLoginMode
-                                  ? 'Use your email and your child\'s student code to access their progress'
-                                  : 'Link your account to your child using their student code',
+                              'Enter your child\'s student code to access their academic information',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
@@ -351,16 +199,10 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
 
                           // Submit Button
                           _buildSubmitButton(),
-                          const SizedBox(height: 20),
 
-                          // Toggle Auth Mode
-                          _buildToggleAuthMode(),
-
-                          // Forgot Password (only in login mode)
-                          if (_isLoginMode) ...[
-                            const SizedBox(height: 20),
-                            _buildForgotPassword(),
-                          ],
+                          // Student Codes Info
+                          const SizedBox(height: 30),
+                          _buildStudentCodesInfo(),
                         ],
                       ),
                     ),
@@ -382,14 +224,14 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
           height: 80,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFFF9800), Color(0xFFF57C00)],
+              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFFF9800).withOpacity(0.3),
+                color: const Color(0xFF667EEA).withOpacity(0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -400,7 +242,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         ),
         const SizedBox(height: 20),
         Text(
-          _isLoginMode ? 'Parent Login' : 'Parent Registration',
+          'Parent Portal',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -409,10 +251,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          _isLoginMode
-              ? 'Monitor your child\'s learning progress'
-              : 'Create an account to support your child\'s learning',
-          textAlign: TextAlign.center,
+          'Track your child\'s academic progress and attendance',
           style: TextStyle(
             fontSize: 16,
             color: _getTextColor().withOpacity(0.7),
@@ -422,25 +261,6 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFF9800).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: _getTextColor(),
-        ),
-      ),
-    ); // Added missing closing parenthesis here
-  }
-
   Widget _buildTextFieldWithIcon({
     required TextEditingController controller,
     required String label,
@@ -448,10 +268,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     required IconData icon,
     required String? Function(String?) validator,
     TextInputType keyboardType = TextInputType.text,
-    TextInputAction textInputAction = TextInputAction.next,
-    bool isPassword = false,
-    Widget? suffixIcon,
-    void Function(String)? onFieldSubmitted,
+    TextInputAction textInputAction = TextInputAction.done,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,14 +297,12 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
             controller: controller,
             keyboardType: keyboardType,
             textInputAction: textInputAction,
-            obscureText: isPassword,
             validator: validator,
-            onFieldSubmitted: onFieldSubmitted,
+            onFieldSubmitted: (_) => _submitForm(),
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(color: _getHintColor()),
               prefixIcon: Icon(icon, color: _getIconColor()),
-              suffixIcon: suffixIcon,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: _getBorderColor()),
@@ -499,7 +314,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide:
-                    const BorderSide(color: Color(0xFFFF9800), width: 2),
+                    const BorderSide(color: Color(0xFF667EEA), width: 2),
               ),
               filled: true,
               fillColor: _getTextFieldBackgroundColor(),
@@ -520,7 +335,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF9800).withOpacity(0.3),
+            color: const Color(0xFF667EEA).withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -529,7 +344,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _submitForm,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFFF9800),
+          backgroundColor: const Color(0xFF667EEA),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(
@@ -546,9 +361,9 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : Text(
-                _isLoginMode ? 'Sign In' : 'Create Account',
-                style: const TextStyle(
+            : const Text(
+                'Access Student Info',
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -557,46 +372,76 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
     );
   }
 
-  Widget _buildToggleAuthMode() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          _isLoginMode ? "Don't have an account?" : 'Already have an account?',
-          style: TextStyle(
-            color: _getTextColor().withOpacity(0.7),
+  Widget _buildStudentCodesInfo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_rounded, color: Colors.blue, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Student Codes',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(width: 8),
-        GestureDetector(
-          onTap: _isLoading ? null : _toggleAuthMode,
-          child: Text(
-            _isLoginMode ? 'Sign Up' : 'Sign In',
-            style: const TextStyle(
-              color: Color(0xFFFF9800),
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.underline,
+          const SizedBox(height: 8),
+          Text(
+            'Use student codes starting with TOD (e.g., TOD001, TOD002, etc.)',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.blue[700],
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              _buildStudentChip('TOD001 - Lihle Mthembu (Gr1)'),
+              _buildStudentChip('TOD009 - Ayanda Zulu (Gr2)'),
+              _buildStudentChip('TOD017 - Inez Viljoen (Gr3)'),
+              _buildStudentChip('TOD025 - Qhawe Khumalo (Gr4)'),
+              _buildStudentChip('TOD033 - Yanga Mbatha (Gr5)'),
+              _buildStudentChip('TOD041 - Gail Botha (Gr6)'),
+              _buildStudentChip('TOD049 - Oliver Cohen (Gr7)'),
+              _buildStudentChip('TOD057 - Wesley Moloi (Gr8)'),
+              _buildStudentChip('TOD065 - Elaine de Wet (Gr9)'),
+              _buildStudentChip('TOD073 - Michael Mthembu (Gr10)'),
+              _buildStudentChip('TOD081 - Ulrich Zulu (Gr11)'),
+              _buildStudentChip('TOD089 - Candice Viljoen (Gr12)'),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildForgotPassword() {
-    return GestureDetector(
-      onTap: _isLoading
-          ? null
-          : () {
-              _showError('Password reset feature coming soon!');
-            },
-      child: const Text(
-        'Forgot Password?',
+  Widget _buildStudentChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Text(
+        text,
         style: TextStyle(
-          color: Color(0xFFFF9800),
-          fontWeight: FontWeight.w600,
-          decoration: TextDecoration.underline,
-          fontSize: 14,
+          fontSize: 10,
+          color: Colors.blue[800],
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -641,13 +486,7 @@ class _ParentAuthScreenState extends State<ParentAuthScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _surnameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     _studentCodeController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 }
