@@ -10,9 +10,10 @@ class StudentService {
     try {
       final response = await _supabase.from('lessons').select('''
             *,
-            educator:educator_id (
+            profiles!educator_id (
               id,
-              full_name,
+              first_name,
+              last_name,
               avatar_url
             )
           ''').eq('is_published', true).order('created_at', ascending: false);
@@ -24,16 +25,17 @@ class StudentService {
     }
   }
 
-  // Get lessons by student's grade (newest first)
+  // Get lessons by student's grade (newest first) - FIXED
   Future<List<Map<String, dynamic>>> getLessonsByGrade(String grade) async {
     try {
       final response = await _supabase
           .from('lessons')
           .select('''
             *,
-            educator:educator_id (
+            profiles!educator_id (
               id,
-              full_name,
+              first_name,
+              last_name,
               avatar_url
             )
           ''')
@@ -41,6 +43,7 @@ class StudentService {
           .eq('grade', grade)
           .order('created_at', ascending: false);
 
+      _logInfo('Fetched ${response.length} lessons for grade: $grade');
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e, stackTrace) {
       _logError('Error fetching lessons by grade: $grade', e, stackTrace);
@@ -55,9 +58,10 @@ class StudentService {
           .from('lessons')
           .select('''
             *,
-            educator:educator_id (
+            profiles!educator_id (
               id,
-              full_name,
+              first_name,
+              last_name,
               avatar_url
             )
           ''')
@@ -126,8 +130,8 @@ class StudentService {
 
       final completedSubjects = progressResponse
           .map((item) {
-            final lessons = item['lessons'] as Map<String, dynamic>;
-            return lessons['subject'] as String;
+            final lessons = item['lessons'] as Map<String, dynamic>?;
+            return lessons?['subject'] as String?;
           })
           .whereType<String>()
           .toSet()
@@ -139,9 +143,10 @@ class StudentService {
             .from('lessons')
             .select('''
               *,
-              educator:educator_id (
+              profiles!educator_id (
                 id,
-                full_name,
+                first_name,
+                last_name,
                 avatar_url
               )
             ''')
@@ -158,9 +163,10 @@ class StudentService {
             .from('lessons')
             .select('''
               *,
-              educator:educator_id (
+              profiles!educator_id (
                 id,
-                full_name,
+                first_name,
+                last_name,
                 avatar_url
               )
             ''')
@@ -185,9 +191,10 @@ class StudentService {
           .from('lessons')
           .select('''
             *,
-            educator:educator_id (
+            profiles!educator_id (
               id,
-              full_name,
+              first_name,
+              last_name,
               avatar_url
             )
           ''')
@@ -209,9 +216,10 @@ class StudentService {
           .from('lessons')
           .select('''
             *,
-            educator:educator_id (
+            profiles!educator_id (
               id,
-              full_name,
+              first_name,
+              last_name,
               avatar_url
             )
           ''')
@@ -251,9 +259,10 @@ class StudentService {
     try {
       final response = await _supabase.from('lessons').select('''
             *,
-            educator:educator_id (
+            profiles!educator_id (
               id,
-              full_name,
+              first_name,
+              last_name,
               avatar_url,
               bio
             )
@@ -284,9 +293,10 @@ class StudentService {
           .from('lessons')
           .select('''
             *,
-            educator:educator_id (
+            profiles!educator_id (
               id,
-              full_name,
+              first_name,
+              last_name,
               avatar_url
             )
           ''')
@@ -309,9 +319,10 @@ class StudentService {
       final response = await _supabase.from('student_favorites').select('''
             lessons:lesson_id (
               *,
-              educator:educator_id (
+              profiles!educator_id (
                 id,
-                full_name,
+                first_name,
+                last_name,
                 avatar_url
               )
             )
@@ -377,6 +388,49 @@ class StudentService {
         stackTrace,
       );
       return null;
+    }
+  }
+
+  // Get unique subjects from lessons
+  Future<List<String>> getAvailableSubjects() async {
+    try {
+      final response = await _supabase
+          .from('lessons')
+          .select('subject')
+          .eq('is_published', true);
+
+      final subjects = response
+          .map((item) => item['subject'] as String?)
+          .whereType<String>()
+          .toSet()
+          .toList();
+
+      return subjects;
+    } catch (e, stackTrace) {
+      _logError('Error fetching available subjects', e, stackTrace);
+      return [];
+    }
+  }
+
+  // Get unique subjects for a specific grade
+  Future<List<String>> getSubjectsByGrade(String grade) async {
+    try {
+      final response = await _supabase
+          .from('lessons')
+          .select('subject')
+          .eq('is_published', true)
+          .eq('grade', grade);
+
+      final subjects = response
+          .map((item) => item['subject'] as String?)
+          .whereType<String>()
+          .toSet()
+          .toList();
+
+      return subjects;
+    } catch (e, stackTrace) {
+      _logError('Error fetching subjects for grade: $grade', e, stackTrace);
+      return [];
     }
   }
 

@@ -24,6 +24,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<Map<String, dynamic>> _recommendedLessons = [];
   List<Map<String, dynamic>> _popularLessons = [];
   List<Map<String, dynamic>> _gradeLessons = [];
+  List<String> _gradeSubjects = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -52,58 +53,33 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _errorMessage = null;
       });
 
-      // Initialize with empty data first
-      setState(() {
-        _studentProgress = {};
-        _newestLessons = [];
-        _recommendedLessons = [];
-        _popularLessons = [];
-        _gradeLessons = [];
-      });
-
-      // Load all data with individual error handling
-      final progress = await _studentService
-          .getStudentProgress(_studentCode)
+      // Load all data in parallel
+      final results = await Future.wait([
+        _studentService.getStudentProgress(_studentCode),
+        _studentService.getNewestLessons(limit: 10),
+        _studentService.getRecommendedLessons(_studentCode, _grade),
+        _studentService.getPopularLessons(limit: 5),
+        _studentService.getLessonsByGrade(_grade),
+        _studentService.getSubjectsByGrade(_grade),
+      ], eagerError: true)
           .catchError((e) {
-        _logError('Error loading progress', e);
-        return <String, dynamic>{};
+        _logError('Error in parallel loading', e);
+        return List.filled(6, null);
       });
 
-      final newest =
-          await _studentService.getNewestLessons(limit: 10).catchError((e) {
-        _logError('Error loading newest lessons', e);
-        return <Map<String, dynamic>>[];
-      });
+      if (results.length == 6) {
+        setState(() {
+          _studentProgress = results[0] as Map<String, dynamic>? ?? {};
+          _newestLessons = results[1] as List<Map<String, dynamic>>? ?? [];
+          _recommendedLessons = results[2] as List<Map<String, dynamic>>? ?? [];
+          _popularLessons = results[3] as List<Map<String, dynamic>>? ?? [];
+          _gradeLessons = results[4] as List<Map<String, dynamic>>? ?? [];
+          _gradeSubjects = results[5] as List<String>? ?? [];
+          _isLoading = false;
+        });
+      }
 
-      final recommended = await _studentService
-          .getRecommendedLessons(_studentCode, _grade)
-          .catchError((e) {
-        _logError('Error loading recommended lessons', e);
-        return <Map<String, dynamic>>[];
-      });
-
-      final popular =
-          await _studentService.getPopularLessons(limit: 5).catchError((e) {
-        _logError('Error loading popular lessons', e);
-        return <Map<String, dynamic>>[];
-      });
-
-      final gradeLessons =
-          await _studentService.getLessonsByGrade(_grade).catchError((e) {
-        _logError('Error loading grade lessons', e);
-        return <Map<String, dynamic>>[];
-      });
-
-      setState(() {
-        _studentProgress = progress;
-        _newestLessons = newest;
-        _recommendedLessons = recommended;
-        _popularLessons = popular;
-        _gradeLessons = gradeLessons;
-        _isLoading = false;
-      });
-
-      _logInfo('Student dashboard data loaded successfully');
+      _debugLessonData();
     } catch (e) {
       _logError('Failed to load student dashboard data', e);
       setState(() {
@@ -113,6 +89,23 @@ class _StudentDashboardState extends State<StudentDashboard> {
     }
   }
 
+  void _debugLessonData() {
+    _logInfo('=== DEBUG LESSON DATA ===');
+    _logInfo('Student Grade: $_grade');
+    _logInfo('Student Code: $_studentCode');
+    _logInfo('Grade Lessons Count: ${_gradeLessons.length}');
+    _logInfo('Grade Subjects: $_gradeSubjects');
+
+    if (_gradeLessons.isNotEmpty) {
+      _logInfo('Sample Lesson: ${_gradeLessons.first}');
+    }
+
+    _logInfo('Newest Lessons Count: ${_newestLessons.length}');
+    _logInfo('Recommended Lessons Count: ${_recommendedLessons.length}');
+    _logInfo('Popular Lessons Count: ${_popularLessons.length}');
+    _logInfo('Progress Data: $_studentProgress');
+  }
+
   void _navigateToLesson(Map<String, dynamic> lesson) {
     if (lesson.isEmpty) {
       _logWarning('Attempted to navigate to empty lesson');
@@ -120,33 +113,33 @@ class _StudentDashboardState extends State<StudentDashboard> {
     }
 
     _logInfo('Navigating to lesson: ${lesson['title']}');
-    Navigator.pushNamed(
-      context,
-      '/student/lesson',
-      arguments: {
-        'lesson': lesson,
-        'student_code': _studentCode,
-        'student_info': _studentInfo,
-      },
+    // TODO: Implement lesson navigation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Opening: ${lesson['title']}'),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 
   void _navigateToSubjectLessons(String subject) {
     _logInfo('Navigating to subject lessons: $subject');
-    Navigator.pushNamed(
-      context,
-      '/student/subject-lessons',
-      arguments: {
-        'subject': subject,
-        'student_code': _studentCode,
-        'student_info': _studentInfo,
-      },
+    // TODO: Implement subject navigation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Showing $subject lessons'),
+        backgroundColor: Colors.blue,
+      ),
     );
   }
 
   void _logout() {
     _logInfo('User logging out');
     Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+  }
+
+  Future<void> _refreshData() async {
+    await _loadStudentData();
   }
 
   // Private logging methods
@@ -193,32 +186,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
         centerTitle: false,
         actions: [
           IconButton(
+            icon: Icon(Icons.refresh, color: _getPrimaryColor()),
+            onPressed: _refreshData,
+          ),
+          IconButton(
             icon: Icon(Icons.notifications_none,
                 color: _getTextColor().withOpacity(0.7)),
             onPressed: () {
               _logInfo('Notifications button pressed');
             },
-          ),
-          PopupMenuButton<String>(
-            icon:
-                Icon(Icons.more_vert, color: _getTextColor().withOpacity(0.7)),
-            onSelected: (value) {
-              if (value == 'logout') {
-                _logout();
-              }
-            },
-            itemBuilder: (BuildContext context) => [
-              const PopupMenuItem<String>(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout),
-                    SizedBox(width: 8),
-                    Text('Sign Out'),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -232,13 +208,19 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildLoadingState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Loading your dashboard...'),
+          CircularProgressIndicator(color: _getPrimaryColor()),
+          const SizedBox(height: 16),
+          Text(
+            'Loading your dashboard...',
+            style: TextStyle(
+              color: _getTextColor(),
+              fontSize: 16,
+            ),
+          ),
         ],
       ),
     );
@@ -251,9 +233,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
         children: [
           const Icon(Icons.error_outline, size: 64, color: Colors.red),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Failed to load dashboard',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: _getTextColor(),
+            ),
           ),
           const SizedBox(height: 8),
           Padding(
@@ -261,12 +247,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
             child: Text(
               _errorMessage ?? 'Unknown error occurred',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey),
+              style: TextStyle(color: _getTextColor().withOpacity(0.6)),
             ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: _loadStudentData,
+            onPressed: _refreshData,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _getPrimaryColor(),
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Try Again'),
           ),
         ],
@@ -290,208 +280,233 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildHomeTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Welcome Section
-          _buildWelcomeSection(),
-          const SizedBox(height: 24),
-
-          // Progress Section
-          _buildProgressSection(),
-          const SizedBox(height: 24),
-
-          // Newest Lessons Section
-          if (_newestLessons.isNotEmpty) ...[
-            _buildSectionHeader('Newest Lessons', 'See All', () {
-              _logInfo('Newest lessons see all pressed');
-            }),
-            const SizedBox(height: 16),
-            _buildLessonList(_newestLessons.take(3).toList()),
+    return RefreshIndicator(
+      onRefresh: _refreshData, // Fixed: Now returns Future<void>
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome Section
+            _buildWelcomeSection(),
             const SizedBox(height: 24),
-          ],
 
-          // Recommended for You
-          if (_recommendedLessons.isNotEmpty) ...[
-            _buildSectionHeader('Recommended for You', 'View All', () {
-              _logInfo('Recommended lessons view all pressed');
-            }),
-            const SizedBox(height: 16),
-            _buildLessonGrid(_recommendedLessons),
+            // Progress Section
+            _buildProgressSection(),
             const SizedBox(height: 24),
-          ],
 
-          // Popular Lessons
-          if (_popularLessons.isNotEmpty) ...[
-            _buildSectionHeader('Popular Lessons', 'See More', () {
-              _logInfo('Popular lessons see more pressed');
-            }),
-            const SizedBox(height: 16),
-            _buildLessonList(_popularLessons),
-            const SizedBox(height: 24),
+            // Newest Lessons Section
+            if (_newestLessons.isNotEmpty) ...[
+              _buildSectionHeader('Newest Lessons', 'See All', () {
+                _logInfo('Newest lessons see all pressed');
+              }),
+              const SizedBox(height: 16),
+              _buildLessonList(_newestLessons.take(3).toList()),
+              const SizedBox(height: 24),
+            ],
+
+            // Recommended for You
+            if (_recommendedLessons.isNotEmpty) ...[
+              _buildSectionHeader('Recommended for You', 'View All', () {
+                _logInfo('Recommended lessons view all pressed');
+              }),
+              const SizedBox(height: 16),
+              _buildLessonGrid(_recommendedLessons),
+              const SizedBox(height: 24),
+            ],
+
+            // Popular Lessons
+            if (_popularLessons.isNotEmpty) ...[
+              _buildSectionHeader('Popular Lessons', 'See More', () {
+                _logInfo('Popular lessons see more pressed');
+              }),
+              const SizedBox(height: 16),
+              _buildLessonList(_popularLessons.take(3).toList()),
+              const SizedBox(height: 24),
+            ],
+
+            // Grade Lessons Preview
+            if (_gradeLessons.isNotEmpty) ...[
+              _buildSectionHeader('Your Grade ($_grade) Lessons', 'Browse All',
+                  () {
+                setState(() => _currentIndex = 1);
+              }),
+              const SizedBox(height: 16),
+              _buildLessonList(_gradeLessons.take(2).toList()),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildBrowseTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader('Browse All Lessons', '', () {}),
-          const SizedBox(height: 16),
+    return RefreshIndicator(
+      onRefresh: _refreshData, // Fixed: Now returns Future<void>
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome to Grade Section
+            _buildGradeWelcomeSection(),
+            const SizedBox(height: 24),
 
-          // Search Bar
-          _buildSearchBar(),
-          const SizedBox(height: 24),
+            // Search Bar
+            _buildSearchBar(),
+            const SizedBox(height: 24),
 
-          // Subjects Grid
-          _buildSectionHeader('Subjects', '', () {}),
-          const SizedBox(height: 16),
-          _buildSubjectGrid(),
-          const SizedBox(height: 24),
+            // Quick Access - Subjects available in student's grade
+            _buildGradeSubjectsSection(),
+            const SizedBox(height: 24),
 
-          // All Lessons for Student's Grade
-          _buildSectionHeader('Lessons for $_grade', '', () {}),
-          const SizedBox(height: 16),
-          _gradeLessons.isNotEmpty
-              ? _buildLessonList(_gradeLessons)
-              : _buildEmptyState('No lessons available for $_grade'),
-        ],
+            // All Lessons for Student's Grade
+            _buildGradeLessonsSection(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildProgressTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildProgressDetailSection(),
-          const SizedBox(height: 24),
-          _buildSectionHeader('Continue Learning', '', () {}),
-          const SizedBox(height: 16),
-          _newestLessons.isNotEmpty
-              ? _buildLessonList(_newestLessons.take(2).toList())
-              : _buildEmptyState('No lessons available'),
-          const SizedBox(height: 24),
-          _buildSectionHeader('Your Favorites', '', () {}),
-          const SizedBox(height: 16),
-          _buildEmptyState('No favorites yet'),
-        ],
+    return RefreshIndicator(
+      onRefresh: _refreshData, // Fixed: Now returns Future<void>
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildProgressDetailSection(),
+            const SizedBox(height: 24),
+            _buildSectionHeader('Continue Learning', '', () {}),
+            const SizedBox(height: 16),
+            _newestLessons.isNotEmpty
+                ? _buildLessonList(_newestLessons.take(2).toList())
+                : _buildEmptyState('No lessons available'),
+            const SizedBox(height: 24),
+            _buildSectionHeader('Your Favorites', '', () {}),
+            const SizedBox(height: 16),
+            _buildEmptyState('No favorites yet'),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildProfileTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          // Profile Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: _getCardColor(),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+    return RefreshIndicator(
+      onRefresh: _refreshData, // Fixed: Now returns Future<void>
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Profile Card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _getCardColor(),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4CAF50).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      color: Color(0xFF4CAF50),
+                      size: 40,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '${_studentInfo['first_name']?.toString() ?? 'Student'} ${_studentInfo['last_name']?.toString() ?? ''}',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: _getTextColor(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$_grade • ${_studentInfo['school_name']?.toString() ?? 'Transorange School for the Deaf'}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: _getTextColor().withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4CAF50).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.badge, color: Color(0xFF4CAF50)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Student Code: ${_studentInfo['student_code']?.toString() ?? 'Unknown'}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4CAF50),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Column(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Color(0xFF4CAF50),
-                    size: 40,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '${_studentInfo['first_name']?.toString() ?? 'Student'} ${_studentInfo['last_name']?.toString() ?? ''}',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: _getTextColor(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$_grade • ${_studentInfo['school_name']?.toString() ?? 'Transorange School for the Deaf'}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: _getTextColor().withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50).withOpacity(0.1),
+            const SizedBox(height: 24),
+
+            // Stats
+            _buildProfileStats(),
+            const SizedBox(height: 24),
+
+            // Logout Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _logout,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.badge, color: Color(0xFF4CAF50)),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Student Code: ${_studentInfo['student_code']?.toString() ?? 'Unknown'}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF4CAF50),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Stats
-          _buildProfileStats(),
-          const SizedBox(height: 24),
-
-          // Logout Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _logout,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                child: const Text('Sign Out'),
               ),
-              child: const Text('Sign Out'),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
+  // ... (All the other helper methods remain exactly the same as in the previous code)
+  // _buildWelcomeSection(), _buildProgressSection(), _buildLessonCard(), etc.
+  // These methods don't need to change
 
   Widget _buildWelcomeSection() {
     return Container(
@@ -541,6 +556,64 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   style: TextStyle(
                     fontSize: 14,
                     color: _getTextColor().withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGradeWelcomeSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF4CAF50).withOpacity(0.1),
+            const Color(0xFF2196F3).withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: const BoxDecoration(
+              color: Color(0xFF4CAF50),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.school,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$_grade Lessons',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _getTextColor(),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'All lessons curated for your grade level',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _getTextColor().withOpacity(0.7),
                   ),
                 ),
               ],
@@ -793,6 +866,67 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
+  Widget _buildGradeSubjectsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Subjects in $_grade', '', () {}),
+        const SizedBox(height: 16),
+        _gradeSubjects.isNotEmpty
+            ? _buildSubjectChips(_gradeSubjects)
+            : _buildEmptyState('No subjects available for $_grade'),
+      ],
+    );
+  }
+
+  Widget _buildSubjectChips(List<String> subjects) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: subjects.map((subject) {
+        return FilterChip(
+          label: Text(subject),
+          selected: false,
+          onSelected: (selected) {
+            _navigateToSubjectLessons(subject);
+          },
+          backgroundColor: _getCardColor(),
+          selectedColor: const Color(0xFF4CAF50).withOpacity(0.2),
+          labelStyle: TextStyle(
+            color: _getTextColor(),
+            fontWeight: FontWeight.w500,
+          ),
+          checkmarkColor: const Color(0xFF4CAF50),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildGradeLessonsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionHeader('All $_grade Lessons', '', () {}),
+            Text(
+              '${_gradeLessons.length} lessons',
+              style: TextStyle(
+                color: _getTextColor().withOpacity(0.6),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _gradeLessons.isNotEmpty
+            ? _buildLessonList(_gradeLessons)
+            : _buildEmptyState('No lessons available for $_grade yet'),
+      ],
+    );
+  }
+
   Widget _buildLessonList(List<Map<String, dynamic>> lessons) {
     return Column(
       children: lessons.map((lesson) => _buildLessonCard(lesson)).toList(),
@@ -800,13 +934,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildLessonCard(Map<String, dynamic> lesson) {
-    final educator = lesson['educator'] as Map<String, dynamic>?;
-    final educatorName =
-        educator?['full_name']?.toString() ?? 'Unknown Educator';
+    final educator = lesson['profiles'] as Map<String, dynamic>?;
+    final educatorName = educator != null
+        ? '${educator['first_name'] ?? ''} ${educator['last_name'] ?? ''}'
+            .trim()
+        : 'Unknown Educator';
+
     final subject = lesson['subject']?.toString() ?? 'General';
     final title = lesson['title']?.toString() ?? 'Untitled Lesson';
-    final duration = (lesson['duration_minutes'] as num?)?.toInt() ?? 15;
+
+    // Fix duration handling - your database uses 'duration' in seconds
+    final durationSeconds = (lesson['duration'] as num?)?.toInt() ?? 0;
+    final durationMinutes = (durationSeconds / 60).ceil();
+
     final views = (lesson['views'] as num?)?.toInt();
+    final grade = lesson['grade']?.toString() ?? 'Unknown Grade';
 
     return GestureDetector(
       onTap: () => _navigateToLesson(lesson),
@@ -826,6 +968,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         ),
         child: Row(
           children: [
+            // Subject Icon
             Container(
               width: 60,
               height: 60,
@@ -840,10 +983,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
               ),
             ),
             const SizedBox(width: 12),
+
+            // Lesson Details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Title
                   Text(
                     title,
                     style: TextStyle(
@@ -855,6 +1001,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
+
+                  // Educator and Subject
                   Text(
                     'By $educatorName • $subject',
                     style: TextStyle(
@@ -863,22 +1011,53 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     ),
                   ),
                   const SizedBox(height: 4),
+
+                  // Metadata
                   Row(
                     children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: _getTextColor().withOpacity(0.4),
+                      // Duration
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: _getTextColor().withOpacity(0.4),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$durationMinutes min',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _getTextColor().withOpacity(0.6),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$duration min',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _getTextColor().withOpacity(0.6),
-                        ),
+
+                      const SizedBox(width: 16),
+
+                      // Grade
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.grade,
+                            size: 14,
+                            color: _getTextColor().withOpacity(0.4),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            grade,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _getTextColor().withOpacity(0.6),
+                            ),
+                          ),
+                        ],
                       ),
+
                       const Spacer(),
+
+                      // Views (if available)
                       if (views != null)
                         Text(
                           '$views views',
@@ -919,7 +1098,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Widget _buildLessonGridCard(Map<String, dynamic> lesson) {
     final subject = lesson['subject']?.toString() ?? 'General';
     final title = lesson['title']?.toString() ?? 'Untitled Lesson';
-    final duration = (lesson['duration_minutes'] as num?)?.toInt() ?? 15;
+    final durationSeconds = (lesson['duration'] as num?)?.toInt() ?? 0;
+    final durationMinutes = (durationSeconds / 60).ceil();
 
     return GestureDetector(
       onTap: () => _navigateToLesson(lesson),
@@ -988,7 +1168,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '$duration min',
+                        '$durationMinutes min',
                         style: TextStyle(
                           fontSize: 11,
                           color: _getTextColor().withOpacity(0.6),
@@ -1031,104 +1211,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
         onChanged: (value) {
           _logInfo('Search query: $value');
         },
-      ),
-    );
-  }
-
-  Widget _buildSubjectGrid() {
-    final subjects = [
-      {
-        'name': 'Mathematics',
-        'icon': Icons.calculate,
-        'color': const Color(0xFF2196F3)
-      },
-      {
-        'name': 'Science',
-        'icon': Icons.science,
-        'color': const Color(0xFFFF9800)
-      },
-      {
-        'name': 'History',
-        'icon': Icons.history,
-        'color': const Color(0xFF4CAF50)
-      },
-      {
-        'name': 'Languages',
-        'icon': Icons.language,
-        'color': const Color(0xFF9C27B0)
-      },
-      {
-        'name': 'Physics',
-        'icon': Icons.rocket_launch,
-        'color': const Color(0xFF607D8B)
-      },
-      {
-        'name': 'Chemistry',
-        'icon': Icons.emoji_objects,
-        'color': const Color(0xFF795548)
-      },
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.0,
-      ),
-      itemCount: subjects.length,
-      itemBuilder: (context, index) {
-        final subject = subjects[index];
-        return _buildSubjectCard(
-          subject['name'] as String,
-          subject['icon'] as IconData,
-          subject['color'] as Color,
-        );
-      },
-    );
-  }
-
-  Widget _buildSubjectCard(String name, IconData icon, Color color) {
-    return GestureDetector(
-      onTap: () => _navigateToSubjectLessons(name),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _getCardColor(),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: _getTextColor(),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1255,5 +1337,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF333344)
         : const Color(0xFFE2E8F0);
+  }
+
+  Color _getPrimaryColor() {
+    return const Color(0xFF4CAF50);
   }
 }
