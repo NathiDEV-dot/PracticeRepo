@@ -1,4 +1,8 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
+import 'package:signsync_academy/core/services/content_management_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ContentManagement extends StatefulWidget {
   const ContentManagement({super.key});
@@ -8,66 +12,176 @@ class ContentManagement extends StatefulWidget {
 }
 
 class _ContentManagementState extends State<ContentManagement> {
-  int _selectedFolder = 0;
-  final List<String> _folders = [
-    'All Content',
-    'Mathematics',
-    'Science',
-    'History',
-    'Languages',
-    'Archived'
-  ];
+  final ContentManagementService _contentService = ContentManagementService();
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  final List<Map<String, dynamic>> _videos = [
-    {
-      'title': 'Algebra Basics',
-      'duration': '15:30',
-      'views': 125,
-      'students': 25,
-      'icon': Icons.play_arrow,
-      'color': const Color(0xFF3B82F6),
-    },
-    {
-      'title': 'Geometry Concepts',
-      'duration': '22:15',
-      'views': 98,
-      'students': 18,
-      'icon': Icons.play_arrow,
-      'color': const Color(0xFF8B5CF6),
-    },
-    {
-      'title': 'Science Lab Safety',
-      'duration': '08:45',
-      'views': 156,
-      'students': 32,
-      'icon': Icons.play_arrow,
-      'color': const Color(0xFF10B981),
-    },
-    {
-      'title': 'Chemical Reactions',
-      'duration': '18:20',
-      'views': 87,
-      'students': 15,
-      'icon': Icons.play_arrow,
-      'color': const Color(0xFFF59E0B),
-    },
-    {
-      'title': 'World History Overview',
-      'duration': '28:40',
-      'views': 203,
-      'students': 41,
-      'icon': Icons.play_arrow,
-      'color': const Color(0xFFEF4444),
-    },
-    {
-      'title': 'Physics Fundamentals',
-      'duration': '25:10',
-      'views': 134,
-      'students': 28,
-      'icon': Icons.play_arrow,
-      'color': const Color(0xFF06B6D4),
-    },
-  ];
+  int _selectedFolder = 0;
+  List<String> _folders = ['All Content'];
+  List<Map<String, dynamic>> _videos = [];
+  Map<String, dynamic> _stats = {};
+  bool _isLoading = true;
+  String _searchQuery = '';
+  String? _currentEducatorId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Get current user
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+      _currentEducatorId = user.id;
+
+      // Load lessons and stats in parallel
+      final futures = await Future.wait([
+        _contentService.getEducatorLessons(user.id),
+        _contentService.getContentStats(user.id),
+      ]);
+
+      final lessons = futures[0] as List<Map<String, dynamic>>;
+      final stats = futures[1] as Map<String, dynamic>;
+
+      // Update folders based on available subjects
+      _updateFolders(stats['subjects'] as List<String>);
+
+      // Update videos
+      _updateVideos(lessons);
+
+      setState(() {
+        _stats = stats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Error loading content: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      _showError('Failed to load content: ${e.toString()}');
+    }
+  }
+
+  void _updateFolders(List<String> subjects) {
+    setState(() {
+      _folders = ['All Content', ...subjects, 'Archived'];
+    });
+  }
+
+  void _updateVideos(List<Map<String, dynamic>> lessons) {
+    setState(() {
+      _videos = lessons.map((lesson) {
+        return {
+          'id': lesson['id'],
+          'title': lesson['title'],
+          'duration': lesson['duration_text'],
+          'views': lesson['views'] ?? 0,
+          'students': lesson['students'] ?? 0,
+          'icon': lesson['icon'],
+          'color': lesson['color'],
+          'subject': lesson['subject'],
+          'is_published': lesson['is_published'],
+          'video_url': lesson['video_url'],
+          'thumbnail_url': lesson['thumbnail_url'],
+          'created_at': lesson['created_at'],
+          'description': lesson['description'],
+        };
+      }).toList();
+    });
+  }
+
+  List<Map<String, dynamic>> get _filteredVideos {
+    if (_selectedFolder == 0) return _videos; // All Content
+
+    final selectedFolder = _folders[_selectedFolder];
+    if (selectedFolder == 'Archived') {
+      return _videos.where((video) => video['is_published'] == false).toList();
+    }
+
+    return _videos
+        .where((video) => video['subject'] == selectedFolder)
+        .toList();
+  }
+
+  List<Map<String, dynamic>> get _searchedVideos {
+    if (_searchQuery.isEmpty) return _filteredVideos;
+
+    return _filteredVideos.where((video) {
+      final title = video['title'] as String;
+      return title.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+  }
+
+  Future<void> _refreshData() async {
+    await _loadData();
+  }
+
+  void _handleSearch(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+  }
+
+  void _playVideo(Map<String, dynamic> video) {
+    final videoUrl = video['video_url'] as String? ?? '';
+    final title = video['title'] as String;
+    VideoPlayerService.playVideo(context, videoUrl, title);
+  }
+
+  void _editContent(Map<String, dynamic> video) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Edit "${video['title']}"'),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+    // TODO: Navigate to lesson editing screen
+  }
+
+  void _viewAnalytics(Map<String, dynamic> video) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Analytics for "${video['title']}"'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+    // TODO: Navigate to analytics screen
+  }
+
+  void _createNewLesson() {
+    // TODO: Navigate to lesson creation screen
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Navigate to lesson creation'),
+        backgroundColor: _getPrimaryColor(),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,35 +197,63 @@ class _ContentManagementState extends State<ContentManagement> {
         actions: [
           IconButton(
             icon: Icon(Icons.add, color: _getPrimaryColor()),
-            onPressed: () {},
+            onPressed: _createNewLesson,
+          ),
+          IconButton(
+            icon: Icon(Icons.refresh_rounded, color: _getPrimaryColor()),
+            onPressed: _refreshData,
           ),
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Quick Stats
-              _buildStatsSection(),
-              const SizedBox(height: 24),
+        child: _isLoading
+            ? _buildLoadingState()
+            : RefreshIndicator(
+                onRefresh: _refreshData,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Quick Stats
+                      _buildStatsSection(),
+                      const SizedBox(height: 24),
 
-              // Search and Filter
-              _buildSearchSection(),
-              const SizedBox(height: 24),
+                      // Search and Filter
+                      _buildSearchSection(),
+                      const SizedBox(height: 24),
 
-              // Folder Navigation
-              _buildFolderSection(),
-              const SizedBox(height: 24),
+                      // Folder Navigation
+                      _buildFolderSection(),
+                      const SizedBox(height: 24),
 
-              // Content Grid
-              _buildContentSection(),
-              const SizedBox(height: 16),
-            ],
+                      // Content Grid
+                      _buildContentSection(),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: _getPrimaryColor()),
+          const SizedBox(height: 16),
+          Text(
+            'Loading your content...',
+            style: TextStyle(
+              color: _getTextColor(),
+              fontSize: 16,
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -136,21 +278,21 @@ class _ContentManagementState extends State<ContentManagement> {
         children: [
           _buildStatCard(
             icon: Icons.video_library_rounded,
-            value: '45',
+            value: '${_stats['total_videos'] ?? 0}',
             label: 'Videos',
             iconColor: const Color(0xFF3B82F6),
             bgColor: const Color(0xFFDBEAFE),
           ),
           _buildStatCard(
             icon: Icons.people_rounded,
-            value: '127',
-            label: 'Students',
+            value: '${_stats['published_videos'] ?? 0}',
+            label: 'Published',
             iconColor: const Color(0xFF16A34A),
             bgColor: const Color(0xFFDCFCE7),
           ),
           _buildStatCard(
             icon: Icons.remove_red_eye_rounded,
-            value: '2.4K',
+            value: '${_stats['total_views'] ?? 0}',
             label: 'Total Views',
             iconColor: const Color(0xFFD97706),
             bgColor: const Color(0xFFFEF3C7),
@@ -220,6 +362,7 @@ class _ContentManagementState extends State<ContentManagement> {
               ],
             ),
             child: TextField(
+              onChanged: _handleSearch,
               decoration: InputDecoration(
                 hintText: 'Search content...',
                 hintStyle: TextStyle(color: _getTextColorSecondary()),
@@ -258,7 +401,9 @@ class _ContentManagementState extends State<ContentManagement> {
           ),
           child: IconButton(
             icon: Icon(Icons.filter_list_rounded, color: _getTextColor()),
-            onPressed: () {},
+            onPressed: () {
+              _showFilterDialog();
+            },
           ),
         ),
       ],
@@ -336,6 +481,12 @@ class _ContentManagementState extends State<ContentManagement> {
   }
 
   Widget _buildContentSection() {
+    final displayVideos = _searchedVideos;
+
+    if (displayVideos.isEmpty) {
+      return _buildEmptyState();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -345,7 +496,7 @@ class _ContentManagementState extends State<ContentManagement> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Recent Videos',
+                _selectedFolder == 0 ? 'All Videos' : _folders[_selectedFolder],
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -360,7 +511,7 @@ class _ContentManagementState extends State<ContentManagement> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${_videos.length} items',
+                  '${displayVideos.length} items',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -378,11 +529,11 @@ class _ContentManagementState extends State<ContentManagement> {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.72, // Adjusted to prevent overflow
+            childAspectRatio: 0.85, // Increased for video thumbnail
           ),
-          itemCount: _videos.length,
+          itemCount: displayVideos.length,
           itemBuilder: (context, index) {
-            final video = _videos[index];
+            final video = displayVideos[index];
             return _buildContentCard(video);
           },
         ),
@@ -390,93 +541,147 @@ class _ContentManagementState extends State<ContentManagement> {
     );
   }
 
-  Widget _buildContentCard(Map<String, dynamic> video) {
+  Widget _buildEmptyState() {
     return Container(
-      constraints: const BoxConstraints(
-        maxHeight: 200, // Added constraint to prevent overflow
-      ),
-      decoration: BoxDecoration(
-        color: _getCardColor(),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: _getBorderColor()),
-      ),
+      padding: const EdgeInsets.all(40),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min, // Changed to min to prevent expansion
         children: [
-          // Header with icon and title
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        _getLightColor(video['color'] as Color),
-                        _getLighterColor(video['color'] as Color),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: _getMediumColor(video['color'] as Color),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Icon(
-                    video['icon'] as IconData,
-                    color: video['color'] as Color,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
+          Icon(
+            Icons.video_library_outlined,
+            size: 64,
+            color: _getTextColor().withOpacity(0.3),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _searchQuery.isNotEmpty
+                ? 'No videos found for "$_searchQuery"'
+                : 'No videos found',
+            style: TextStyle(
+              fontSize: 16,
+              color: _getTextColor().withOpacity(0.6),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          if (_searchQuery.isEmpty)
+            Text(
+              'Create your first lesson to get started',
+              style: TextStyle(
+                fontSize: 14,
+                color: _getTextColor().withOpacity(0.4),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          const SizedBox(height: 20),
+          if (_searchQuery.isEmpty)
+            ElevatedButton.icon(
+              onPressed: _createNewLesson,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Create Lesson'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _getPrimaryColor(),
+                foregroundColor: Colors.white,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentCard(Map<String, dynamic> video) {
+    final hasVideo = (video['video_url'] as String?)?.isNotEmpty ?? false;
+    final thumbnailUrl = video['thumbnail_url'] as String?;
+
+    return GestureDetector(
+      onTap: () => _playVideo(video),
+      child: Container(
+        constraints: const BoxConstraints(
+          maxHeight: 220,
+        ),
+        decoration: BoxDecoration(
+          color: _getCardColor(),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+          border: Border.all(color: _getBorderColor()),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Video Thumbnail Section
+            _buildVideoThumbnail(video, thumbnailUrl, hasVideo),
+
+            // Content Info Section
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        video['title'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _getTextColor(),
-                          height: 1.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
-                          color: _getBackgroundColor(),
-                          borderRadius: BorderRadius.circular(5),
+                          color: _getLightColor(video['color'] as Color),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _getMediumColor(video['color'] as Color),
+                            width: 1.5,
+                          ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Icon(
+                          video['icon'] as IconData,
+                          color: video['color'] as Color,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.schedule_rounded,
-                                size: 10, color: _getTextColorTertiary()),
-                            const SizedBox(width: 2),
                             Text(
-                              video['duration'],
+                              video['title'],
                               style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: _getTextColorTertiary(),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _getTextColor(),
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _getBackgroundColor(),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.schedule_rounded,
+                                      size: 10, color: _getTextColorTertiary()),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    video['duration'],
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      color: _getTextColorTertiary(),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -484,95 +689,200 @@ class _ContentManagementState extends State<ContentManagement> {
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
 
-          // Stats section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _getBackgroundColorLight(),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.remove_red_eye_rounded,
-                          size: 12, color: _getTextColorTertiary()),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          '${video['views']} views',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: _getTextColorTertiary(),
-                          ),
+                  const SizedBox(height: 8),
+
+                  // Stats section
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _getBackgroundColorLight(),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.remove_red_eye_rounded,
+                                size: 12, color: _getTextColorTertiary()),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                '${video['views']} views',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: _getTextColorTertiary(),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.people_rounded,
-                          size: 12, color: _getTextColorTertiary()),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          '${video['students']} students this week',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: _getTextColorTertiary(),
-                          ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.people_rounded,
+                                size: 12, color: _getTextColorTertiary()),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                '${video['students']} students',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: _getTextColorTertiary(),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
 
-          const SizedBox(height: 8),
-
-          // Action buttons
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: _getBorderColorLight()),
+            // Action buttons
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: _getBorderColorLight()),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildActionButton(
+                    icon: Icons.play_arrow_rounded,
+                    label: 'Play',
+                    onPressed: () => _playVideo(video),
+                  ),
+                  Container(
+                    height: 16,
+                    width: 1,
+                    color: _getBorderColorLight(),
+                  ),
+                  _buildActionButton(
+                    icon: Icons.edit_rounded,
+                    label: 'Edit',
+                    onPressed: () => _editContent(video),
+                  ),
+                  Container(
+                    height: 16,
+                    width: 1,
+                    color: _getBorderColorLight(),
+                  ),
+                  _buildActionButton(
+                    icon: Icons.analytics_rounded,
+                    label: 'Stats',
+                    onPressed: () => _viewAnalytics(video),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildActionButton(
-                  icon: Icons.edit_rounded,
-                  label: 'Edit',
-                  onPressed: () => _editContent(video['title']),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoThumbnail(
+      Map<String, dynamic> video, String? thumbnailUrl, bool hasVideo) {
+    return Stack(
+      children: [
+        Container(
+          height: 100,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+            image: thumbnailUrl != null && thumbnailUrl.isNotEmpty
+                ? DecorationImage(
+                    image: NetworkImage(thumbnailUrl),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: thumbnailUrl == null || thumbnailUrl.isEmpty
+              ? Center(
+                  child: Icon(
+                    Icons.videocam_rounded,
+                    color: Colors.grey.shade600,
+                    size: 40,
+                  ),
+                )
+              : null,
+        ),
+
+        // Play button overlay
+        if (hasVideo)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
                 ),
-                Container(
-                  height: 16,
-                  width: 1,
-                  color: _getBorderColorLight(),
+              ),
+              child: Center(
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.play_arrow_rounded,
+                    color: _getPrimaryColor(),
+                    size: 30,
+                  ),
                 ),
-                _buildActionButton(
-                  icon: Icons.analytics_rounded,
-                  label: 'Analytics',
-                  onPressed: () => _viewAnalytics(video['title']),
-                ),
-              ],
+              ),
             ),
           ),
-        ],
-      ),
+
+        // No video indicator
+        if (!hasVideo)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.videocam_off_rounded,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'No Video',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -601,24 +911,18 @@ class _ContentManagementState extends State<ContentManagement> {
     );
   }
 
-  void _editContent(String title) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit "$title"'),
-        backgroundColor: Colors.orange,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _viewAnalytics(String title) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Analytics for "$title"'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Filter Content'),
+        content: const Text('Advanced filtering options coming soon...'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }

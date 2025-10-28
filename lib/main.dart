@@ -56,7 +56,13 @@ class SignSyncApp extends StatelessWidget {
 
         // Dashboard Routes
         '/educator/dashboard': (context) => const EducatorDashboard(),
-        '/student/dashboard': (context) => const StudentDashboard(),
+        '/student/dashboard': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments
+              as Map<String, dynamic>?;
+          return StudentDashboard(
+            studentData: args ?? {},
+          );
+        },
         '/parent/dashboard': (context) => const ParentDashboard(),
 
         // Student Learning Routes
@@ -149,14 +155,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   void _redirectToDashboard(User user) async {
     try {
-      // Get user role from profiles table
+      // Get user profile with role and student info
       final profile = await Supabase.instance.client
           .from('profiles')
-          .select('role')
+          .select('role, student_info')
           .eq('id', user.id)
           .maybeSingle();
 
       final role = profile?['role'] ?? 'student';
+      final studentInfo =
+          profile?['student_info'] as Map<String, dynamic>? ?? {};
 
       if (mounted) {
         switch (role) {
@@ -164,7 +172,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
             Navigator.pushReplacementNamed(context, '/educator/dashboard');
             break;
           case 'student':
-            Navigator.pushReplacementNamed(context, '/student/dashboard');
+            // ✅ FIX: Pass required studentData parameter using named route with arguments
+            Navigator.pushReplacementNamed(
+              context,
+              '/student/dashboard',
+              arguments: {
+                'student_info': studentInfo,
+                'user_id': user.id,
+              },
+            );
             break;
           case 'parent':
             Navigator.pushReplacementNamed(context, '/parent/dashboard');

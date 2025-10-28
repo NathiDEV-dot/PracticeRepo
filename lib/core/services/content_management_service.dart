@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 // ignore: unnecessary_import
 import 'package:flutter/foundation.dart';
 
@@ -286,5 +288,134 @@ class ContentManagementService {
     };
 
     return subjectColors[subject] ?? const Color(0xFF6B7280);
+  }
+}
+
+class VideoPlayerService {
+  static Future<void> playVideo(
+      BuildContext context, String videoUrl, String title) async {
+    if (videoUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No video available for this lesson'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Initialize video player
+      final videoPlayerController = VideoPlayerController.network(videoUrl);
+      await videoPlayerController.initialize();
+
+      // Initialize chewie controller
+      final chewieController = ChewieController(
+        videoPlayerController: videoPlayerController,
+        autoPlay: true,
+        looping: false,
+        allowFullScreen: true,
+        allowMuting: true,
+        showControls: true,
+        materialProgressColors: ChewieProgressColors(
+          playedColor: const Color(0xFF3B82F6),
+          handleColor: const Color(0xFF3B82F6),
+          backgroundColor: Colors.grey,
+          // ignore: deprecated_member_use
+          bufferedColor: Colors.grey.withOpacity(0.5),
+        ),
+        placeholder: Container(
+          color: Colors.grey.shade900,
+        ),
+        errorBuilder: (context, errorMessage) {
+          return Container(
+            color: Colors.grey.shade900,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline_rounded,
+                      color: Colors.white, size: 50),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Error playing video',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    errorMessage,
+                    style: const TextStyle(color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show video player
+      if (context.mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => Dialog(
+            backgroundColor: Colors.black,
+            insetPadding: const EdgeInsets.all(20),
+            child: Stack(
+              children: [
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                    onPressed: () {
+                      videoPlayerController.dispose();
+                      chewieController.dispose();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 50),
+                  child: Chewie(controller: chewieController),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      // Cleanup
+      videoPlayerController.dispose();
+      chewieController.dispose();
+    } catch (e) {
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error playing video: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
