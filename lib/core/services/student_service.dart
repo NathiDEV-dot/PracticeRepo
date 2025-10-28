@@ -1,12 +1,11 @@
-// ignore_for_file: unnecessary_cast
-
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:developer' as developer;
 
 class StudentService {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final String _loggerName = 'StudentService';
 
-  // Get all available lessons for students
+  // Get all available lessons for students (newest first)
   Future<List<Map<String, dynamic>>> getAvailableLessons() async {
     try {
       final response = await _supabase.from('lessons').select('''
@@ -19,12 +18,37 @@ class StudentService {
           ''').eq('is_published', true).order('created_at', ascending: false);
 
       return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      throw Exception('Failed to fetch lessons: $e');
+    } catch (e, stackTrace) {
+      _logError('Error fetching available lessons', e, stackTrace);
+      return [];
     }
   }
 
-  // Get lessons by subject
+  // Get lessons by student's grade (newest first)
+  Future<List<Map<String, dynamic>>> getLessonsByGrade(String grade) async {
+    try {
+      final response = await _supabase
+          .from('lessons')
+          .select('''
+            *,
+            educator:educator_id (
+              id,
+              full_name,
+              avatar_url
+            )
+          ''')
+          .eq('is_published', true)
+          .eq('grade', grade)
+          .order('created_at', ascending: false);
+
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e, stackTrace) {
+      _logError('Error fetching lessons by grade: $grade', e, stackTrace);
+      return [];
+    }
+  }
+
+  // Get lessons by subject (newest first)
   Future<List<Map<String, dynamic>>> getLessonsBySubject(String subject) async {
     try {
       final response = await _supabase
@@ -42,19 +66,20 @@ class StudentService {
           .order('created_at', ascending: false);
 
       return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      throw Exception('Failed to fetch lessons by subject: $e');
+    } catch (e, stackTrace) {
+      _logError('Error fetching lessons by subject: $subject', e, stackTrace);
+      return [];
     }
   }
 
-  // Get student's progress data
-  Future<Map<String, dynamic>> getStudentProgress(String studentId) async {
+  // Get student's progress data using student code
+  Future<Map<String, dynamic>> getStudentProgress(String studentCode) async {
     try {
-      // Get completed lessons count
+      // Get completed lessons count from student_progress
       final completedResponse = await _supabase
           .from('student_progress')
           .select('lesson_id')
-          .eq('student_id', studentId)
+          .eq('student_code', studentCode)
           .eq('completed', true);
 
       final completedCount = completedResponse.length;
@@ -73,16 +98,23 @@ class StudentService {
         'completed_lessons': completedCount,
         'total_lessons': totalCount,
         'progress_percentage': progressPercentage,
-        'current_streak': 7, // This could be calculated from progress dates
+        'current_streak': 7,
       };
-    } catch (e) {
-      throw Exception('Failed to fetch student progress: $e');
+    } catch (e, stackTrace) {
+      _logError('Error fetching student progress for student: $studentCode', e,
+          stackTrace);
+      return {
+        'completed_lessons': 0,
+        'total_lessons': 0,
+        'progress_percentage': 0,
+        'current_streak': 0,
+      };
     }
   }
 
-  // Get recommended lessons for student
+  // Get recommended lessons for student (based on grade and completed subjects)
   Future<List<Map<String, dynamic>>> getRecommendedLessons(
-      String studentId) async {
+      String studentCode, String grade) async {
     try {
       // Get student's completed subjects to recommend similar content
       final progressResponse =
@@ -90,16 +122,18 @@ class StudentService {
             lessons:lesson_id (
               subject
             )
-          ''').eq('student_id', studentId).eq('completed', true);
+          ''').eq('student_code', studentCode).eq('completed', true);
 
       final completedSubjects = progressResponse
-          .map((item) => item['lessons']['subject'] as String?)
+          .map((item) {
+            final lessons = item['lessons'] as Map<String, dynamic>;
+            return lessons['subject'] as String;
+          })
           .whereType<String>()
           .toSet()
           .toList();
 
       // If student has completed lessons, recommend similar subjects
-      // Otherwise, return popular lessons
       if (completedSubjects.isNotEmpty) {
         final response = await _supabase
             .from('lessons')
@@ -112,14 +146,14 @@ class StudentService {
               )
             ''')
             .eq('is_published', true)
-            .inFilter('subject',
-                completedSubjects) // Fixed: changed from .in_ to .inFilter
-            .order('views', ascending: false)
+            .eq('grade', grade)
+            .inFilter('subject', completedSubjects)
+            .order('created_at', ascending: false)
             .limit(5);
 
         return (response as List).cast<Map<String, dynamic>>();
       } else {
-        // Return popular lessons for new students
+        // Return newest lessons from student's grade
         final response = await _supabase
             .from('lessons')
             .select('''
@@ -131,28 +165,84 @@ class StudentService {
               )
             ''')
             .eq('is_published', true)
-            .order('views', ascending: false)
+            .eq('grade', grade)
+            .order('created_at', ascending: false)
             .limit(5);
 
         return (response as List).cast<Map<String, dynamic>>();
       }
-    } catch (e) {
-      throw Exception('Failed to fetch recommended lessons: $e');
+    } catch (e, stackTrace) {
+      _logError('Error fetching recommended lessons for student: $studentCode',
+          e, stackTrace);
+      return [];
     }
   }
 
-  // Mark lesson as completed
-  Future<void> markLessonCompleted(String studentId, String lessonId) async {
+  // Get newest lessons (for dashboard)
+  Future<List<Map<String, dynamic>>> getNewestLessons({int limit = 10}) async {
+    try {
+      final response = await _supabase
+          .from('lessons')
+          .select('''
+            *,
+            educator:educator_id (
+              id,
+              full_name,
+              avatar_url
+            )
+          ''')
+          .eq('is_published', true)
+          .order('created_at', ascending: false)
+          .limit(limit);
+
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e, stackTrace) {
+      _logError('Error fetching newest lessons', e, stackTrace);
+      return [];
+    }
+  }
+
+  // Get popular lessons (most viewed)
+  Future<List<Map<String, dynamic>>> getPopularLessons({int limit = 5}) async {
+    try {
+      final response = await _supabase
+          .from('lessons')
+          .select('''
+            *,
+            educator:educator_id (
+              id,
+              full_name,
+              avatar_url
+            )
+          ''')
+          .eq('is_published', true)
+          .order('views', ascending: false)
+          .limit(limit);
+
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e, stackTrace) {
+      _logError('Error fetching popular lessons', e, stackTrace);
+      return [];
+    }
+  }
+
+  // Mark lesson as completed using student code
+  Future<void> markLessonCompleted(String studentCode, String lessonId) async {
     try {
       await _supabase.from('student_progress').upsert({
-        'student_id': studentId,
+        'student_code': studentCode,
         'lesson_id': lessonId,
         'completed': true,
         'completed_at': DateTime.now().toIso8601String(),
         'progress_percentage': 100,
       });
-    } catch (e) {
-      throw Exception('Failed to mark lesson as completed: $e');
+      _logInfo('Lesson $lessonId marked as completed for student $studentCode');
+    } catch (e, stackTrace) {
+      _logError(
+        'Error marking lesson $lessonId as completed for student $studentCode',
+        e,
+        stackTrace,
+      );
     }
   }
 
@@ -170,8 +260,9 @@ class StudentService {
           ''').eq('id', lessonId).single();
 
       return response as Map<String, dynamic>;
-    } catch (e) {
-      throw Exception('Failed to fetch lesson details: $e');
+    } catch (e, stackTrace) {
+      _logError('Error fetching lesson details: $lessonId', e, stackTrace);
+      return {};
     }
   }
 
@@ -179,11 +270,10 @@ class StudentService {
   Future<void> incrementLessonViews(String lessonId) async {
     try {
       await _supabase.rpc('increment_views', params: {'lesson_id': lessonId});
-    } catch (e) {
-      // Silently fail for view increments
-      if (kDebugMode) {
-        print('Failed to increment views: $e');
-      }
+      _logInfo('Views incremented for lesson: $lessonId');
+    } catch (e, stackTrace) {
+      _logError(
+          'Failed to increment views for lesson: $lessonId', e, stackTrace);
     }
   }
 
@@ -202,17 +292,19 @@ class StudentService {
           ''')
           .eq('is_published', true)
           .or('title.ilike.%$query%,description.ilike.%$query%,subject.ilike.%$query%')
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(20);
 
       return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      throw Exception('Failed to search lessons: $e');
+    } catch (e, stackTrace) {
+      _logError('Error searching lessons with query: $query', e, stackTrace);
+      return [];
     }
   }
 
-  // Get student's favorite lessons
+  // Get student's favorite lessons using student code
   Future<List<Map<String, dynamic>>> getFavoriteLessons(
-      String studentId) async {
+      String studentCode) async {
     try {
       final response = await _supabase.from('student_favorites').select('''
             lessons:lesson_id (
@@ -223,73 +315,95 @@ class StudentService {
                 avatar_url
               )
             )
-          ''').eq('student_id', studentId).eq('lessons.is_published', true);
+          ''').eq('student_code', studentCode).eq('lessons.is_published', true);
 
       return response
           .map((item) => item['lessons'] as Map<String, dynamic>)
+          .where((lesson) => lesson.isNotEmpty)
           .toList();
-    } catch (e) {
-      throw Exception('Failed to fetch favorite lessons: $e');
+    } catch (e, stackTrace) {
+      _logError('Error fetching favorite lessons for student: $studentCode', e,
+          stackTrace);
+      return [];
     }
   }
 
-  // Toggle favorite status
+  // Toggle favorite status using student code
   Future<void> toggleFavorite(
-      String studentId, String lessonId, bool isCurrentlyFavorite) async {
+      String studentCode, String lessonId, bool isCurrentlyFavorite) async {
     try {
       if (isCurrentlyFavorite) {
         await _supabase
             .from('student_favorites')
             .delete()
-            .eq('student_id', studentId)
+            .eq('student_code', studentCode)
             .eq('lesson_id', lessonId);
+        _logInfo(
+            'Lesson $lessonId removed from favorites for student $studentCode');
       } else {
         await _supabase.from('student_favorites').insert({
-          'student_id': studentId,
+          'student_code': studentCode,
           'lesson_id': lessonId,
           'created_at': DateTime.now().toIso8601String(),
         });
+        _logInfo(
+            'Lesson $lessonId added to favorites for student $studentCode');
       }
-    } catch (e) {
-      throw Exception('Failed to toggle favorite: $e');
+    } catch (e, stackTrace) {
+      _logError(
+        'Error toggling favorite for lesson $lessonId, student $studentCode',
+        e,
+        stackTrace,
+      );
     }
   }
 
-  // Get lesson progress for a specific student and lesson
+  // Get lesson progress for a specific student and lesson using student code
   Future<Map<String, dynamic>?> getLessonProgress(
-      String studentId, String lessonId) async {
+      String studentCode, String lessonId) async {
     try {
       final response = await _supabase
           .from('student_progress')
           .select('*')
-          .eq('student_id', studentId)
+          .eq('student_code', studentCode)
           .eq('lesson_id', lessonId)
           .maybeSingle();
 
       return response as Map<String, dynamic>?;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError(
+        'Error fetching lesson progress for lesson $lessonId, student $studentCode',
+        e,
+        stackTrace,
+      );
       return null;
     }
   }
 
-  // Update lesson progress (for videos, quizzes, etc.)
-  Future<void> updateLessonProgress(
-    String studentId,
-    String lessonId,
-    double progressPercentage,
-    bool completed,
-  ) async {
-    try {
-      await _supabase.from('student_progress').upsert({
-        'student_id': studentId,
-        'lesson_id': lessonId,
-        'progress_percentage': progressPercentage,
-        'completed': completed,
-        'last_accessed_at': DateTime.now().toIso8601String(),
-        if (completed) 'completed_at': DateTime.now().toIso8601String(),
-      });
-    } catch (e) {
-      throw Exception('Failed to update lesson progress: $e');
-    }
+  // Private logging methods
+  void _logError(String message, dynamic error, StackTrace stackTrace) {
+    developer.log(
+      message,
+      error: error,
+      stackTrace: stackTrace,
+      name: _loggerName,
+      level: 1000, // SEVERE level
+    );
+  }
+
+  void _logInfo(String message) {
+    developer.log(
+      message,
+      name: _loggerName,
+      level: 800, // INFO level
+    );
+  }
+
+  void _logWarning(String message) {
+    developer.log(
+      message,
+      name: _loggerName,
+      level: 900, // WARNING level
+    );
   }
 }

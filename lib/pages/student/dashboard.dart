@@ -1,11 +1,13 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/services/student_service.dart';
+import 'package:signsync_academy/core/services/student_service.dart';
+import 'dart:developer' as developer;
 
 class StudentDashboard extends StatefulWidget {
-  const StudentDashboard({super.key});
+  final Map<String, dynamic> studentData;
+
+  const StudentDashboard({super.key, required this.studentData});
 
   @override
   State<StudentDashboard> createState() => _StudentDashboardState();
@@ -14,34 +16,32 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   int _currentIndex = 0;
   final StudentService _studentService = StudentService();
+  final String _loggerName = 'StudentDashboard';
 
   // Data states
   Map<String, dynamic> _studentProgress = {};
+  List<Map<String, dynamic>> _newestLessons = [];
   List<Map<String, dynamic>> _recommendedLessons = [];
-  List<Map<String, dynamic>> _recentLessons = [];
+  List<Map<String, dynamic>> _popularLessons = [];
+  List<Map<String, dynamic>> _gradeLessons = [];
   bool _isLoading = true;
   String? _errorMessage;
 
-  // Custom icons for better visual communication
-  final Map<String, IconData> _customIcons = {
-    'home': Icons.dashboard,
-    'live': Icons.live_tv,
-    'assignments': Icons.assignment_turned_in,
-    'profile': Icons.account_circle,
-    'math': Icons.calculate,
-    'science': Icons.science,
-    'progress': Icons.trending_up,
-    'notifications': Icons.notifications_none,
-    'settings': Icons.settings,
-    'video': Icons.play_circle_filled,
-    'record': Icons.video_call,
-    'time': Icons.access_time,
-    'calendar': Icons.calendar_today,
-  };
+  // Student info
+  late Map<String, dynamic> _studentInfo;
+  late String _studentCode;
+  late String _grade;
 
   @override
   void initState() {
     super.initState();
+
+    // Safe initialization with null checks
+    _studentInfo =
+        (widget.studentData['student_info'] as Map<String, dynamic>?) ?? {};
+    _studentCode = _studentInfo['student_code']?.toString() ?? 'unknown';
+    _grade = _studentInfo['grade']?.toString() ?? 'unknown';
+
     _loadStudentData();
   }
 
@@ -52,39 +52,126 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _errorMessage = null;
       });
 
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
-        // Load data in parallel
-        final progress = await _studentService.getStudentProgress(user.id);
-        final recommended =
-            await _studentService.getRecommendedLessons(user.id);
+      // Initialize with empty data first
+      setState(() {
+        _studentProgress = {};
+        _newestLessons = [];
+        _recommendedLessons = [];
+        _popularLessons = [];
+        _gradeLessons = [];
+      });
 
-        setState(() {
-          _studentProgress = progress;
-          _recommendedLessons = recommended;
-          _recentLessons =
-              recommended.take(2).toList(); // Show 2 recent lessons
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'User not authenticated';
-        });
-      }
+      // Load all data with individual error handling
+      final progress = await _studentService
+          .getStudentProgress(_studentCode)
+          .catchError((e) {
+        _logError('Error loading progress', e);
+        return <String, dynamic>{};
+      });
+
+      final newest =
+          await _studentService.getNewestLessons(limit: 10).catchError((e) {
+        _logError('Error loading newest lessons', e);
+        return <Map<String, dynamic>>[];
+      });
+
+      final recommended = await _studentService
+          .getRecommendedLessons(_studentCode, _grade)
+          .catchError((e) {
+        _logError('Error loading recommended lessons', e);
+        return <Map<String, dynamic>>[];
+      });
+
+      final popular =
+          await _studentService.getPopularLessons(limit: 5).catchError((e) {
+        _logError('Error loading popular lessons', e);
+        return <Map<String, dynamic>>[];
+      });
+
+      final gradeLessons =
+          await _studentService.getLessonsByGrade(_grade).catchError((e) {
+        _logError('Error loading grade lessons', e);
+        return <Map<String, dynamic>>[];
+      });
+
+      setState(() {
+        _studentProgress = progress;
+        _newestLessons = newest;
+        _recommendedLessons = recommended;
+        _popularLessons = popular;
+        _gradeLessons = gradeLessons;
+        _isLoading = false;
+      });
+
+      _logInfo('Student dashboard data loaded successfully');
     } catch (e) {
+      _logError('Failed to load student dashboard data', e);
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Failed to load data: ${e.toString()}';
+        _errorMessage = 'Failed to load data. Please try again.';
       });
     }
   }
 
   void _navigateToLesson(Map<String, dynamic> lesson) {
+    if (lesson.isEmpty) {
+      _logWarning('Attempted to navigate to empty lesson');
+      return;
+    }
+
+    _logInfo('Navigating to lesson: ${lesson['title']}');
     Navigator.pushNamed(
       context,
       '/student/lesson',
-      arguments: lesson,
+      arguments: {
+        'lesson': lesson,
+        'student_code': _studentCode,
+        'student_info': _studentInfo,
+      },
+    );
+  }
+
+  void _navigateToSubjectLessons(String subject) {
+    _logInfo('Navigating to subject lessons: $subject');
+    Navigator.pushNamed(
+      context,
+      '/student/subject-lessons',
+      arguments: {
+        'subject': subject,
+        'student_code': _studentCode,
+        'student_info': _studentInfo,
+      },
+    );
+  }
+
+  void _logout() {
+    _logInfo('User logging out');
+    Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+  }
+
+  // Private logging methods
+  void _logError(String message, dynamic error) {
+    developer.log(
+      message,
+      error: error,
+      name: _loggerName,
+      level: 1000, // SEVERE level
+    );
+  }
+
+  void _logInfo(String message) {
+    developer.log(
+      message,
+      name: _loggerName,
+      level: 800, // INFO level
+    );
+  }
+
+  void _logWarning(String message) {
+    developer.log(
+      message,
+      name: _loggerName,
+      level: 900, // WARNING level
     );
   }
 
@@ -105,8 +192,34 @@ class _StudentDashboardState extends State<StudentDashboard> {
         elevation: 0,
         centerTitle: false,
         actions: [
-          _buildIconButton(_customIcons['notifications']!),
-          _buildIconButton(_customIcons['settings']!),
+          IconButton(
+            icon: Icon(Icons.notifications_none,
+                color: _getTextColor().withOpacity(0.7)),
+            onPressed: () {
+              _logInfo('Notifications button pressed');
+            },
+          ),
+          PopupMenuButton<String>(
+            icon:
+                Icon(Icons.more_vert, color: _getTextColor().withOpacity(0.7)),
+            onSelected: (value) {
+              if (value == 'logout') {
+                _logout();
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout),
+                    SizedBox(width: 8),
+                    Text('Sign Out'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: _isLoading
@@ -166,9 +279,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
       case 0:
         return _buildHomeTab();
       case 1:
-        return _buildLiveSessionsTab();
+        return _buildBrowseTab();
       case 2:
-        return _buildHomeworkTab();
+        return _buildProgressTab();
       case 3:
         return _buildProfileTab();
       default:
@@ -190,55 +303,197 @@ class _StudentDashboardState extends State<StudentDashboard> {
           _buildProgressSection(),
           const SizedBox(height: 24),
 
-          // Today's Activities (Recommended Lessons)
-          if (_recommendedLessons.isNotEmpty) ...[
-            _buildSectionHeader('Recommended for You'),
+          // Newest Lessons Section
+          if (_newestLessons.isNotEmpty) ...[
+            _buildSectionHeader('Newest Lessons', 'See All', () {
+              _logInfo('Newest lessons see all pressed');
+            }),
             const SizedBox(height: 16),
-            ..._recommendedLessons.take(2).map(
-                  (lesson) => _buildActivityCard(
-                    lesson['title'] ?? 'Untitled Lesson',
-                    lesson['subject'] ?? 'General',
-                    _getSubjectIcon(lesson['subject']),
-                    '${lesson['duration_minutes'] ?? 15} min',
-                    'Watch Now',
-                    _getSubjectColor(lesson['subject']),
-                    onTap: () => _navigateToLesson(lesson),
-                  ),
-                ),
-            const SizedBox(height: 12),
-          ],
-
-          // Recent Activity
-          if (_recentLessons.isNotEmpty) ...[
-            _buildSectionHeader('Continue Learning'),
-            const SizedBox(height: 16),
-            ..._recentLessons.map(
-              (lesson) => _buildActivityCard(
-                lesson['title'] ?? 'Untitled Lesson',
-                lesson['subject'] ?? 'General',
-                _getSubjectIcon(lesson['subject']),
-                '${lesson['duration_minutes'] ?? 15} min',
-                'Continue',
-                _getSubjectColor(lesson['subject']),
-                onTap: () => _navigateToLesson(lesson),
-              ),
-            ),
+            _buildLessonList(_newestLessons.take(3).toList()),
             const SizedBox(height: 24),
           ],
 
-          // Quick Access Subjects
-          _buildSectionHeader('Browse Subjects'),
+          // Recommended for You
+          if (_recommendedLessons.isNotEmpty) ...[
+            _buildSectionHeader('Recommended for You', 'View All', () {
+              _logInfo('Recommended lessons view all pressed');
+            }),
+            const SizedBox(height: 16),
+            _buildLessonGrid(_recommendedLessons),
+            const SizedBox(height: 24),
+          ],
+
+          // Popular Lessons
+          if (_popularLessons.isNotEmpty) ...[
+            _buildSectionHeader('Popular Lessons', 'See More', () {
+              _logInfo('Popular lessons see more pressed');
+            }),
+            const SizedBox(height: 16),
+            _buildLessonList(_popularLessons),
+            const SizedBox(height: 24),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBrowseTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Browse All Lessons', '', () {}),
+          const SizedBox(height: 16),
+
+          // Search Bar
+          _buildSearchBar(),
+          const SizedBox(height: 24),
+
+          // Subjects Grid
+          _buildSectionHeader('Subjects', '', () {}),
           const SizedBox(height: 16),
           _buildSubjectGrid(),
+          const SizedBox(height: 24),
+
+          // All Lessons for Student's Grade
+          _buildSectionHeader('Lessons for $_grade', '', () {}),
+          const SizedBox(height: 16),
+          _gradeLessons.isNotEmpty
+              ? _buildLessonList(_gradeLessons)
+              : _buildEmptyState('No lessons available for $_grade'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildProgressDetailSection(),
+          const SizedBox(height: 24),
+          _buildSectionHeader('Continue Learning', '', () {}),
+          const SizedBox(height: 16),
+          _newestLessons.isNotEmpty
+              ? _buildLessonList(_newestLessons.take(2).toList())
+              : _buildEmptyState('No lessons available'),
+          const SizedBox(height: 24),
+          _buildSectionHeader('Your Favorites', '', () {}),
+          const SizedBox(height: 16),
+          _buildEmptyState('No favorites yet'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          // Profile Card
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: _getCardColor(),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4CAF50).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    color: Color(0xFF4CAF50),
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '${_studentInfo['first_name']?.toString() ?? 'Student'} ${_studentInfo['last_name']?.toString() ?? ''}',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _getTextColor(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$_grade • ${_studentInfo['school_name']?.toString() ?? 'Transorange School for the Deaf'}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _getTextColor().withOpacity(0.6),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4CAF50).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.badge, color: Color(0xFF4CAF50)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Student Code: ${_studentInfo['student_code']?.toString() ?? 'Unknown'}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF4CAF50),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Stats
+          _buildProfileStats(),
+          const SizedBox(height: 24),
+
+          // Logout Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _logout,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Sign Out'),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildWelcomeSection() {
-    final user = Supabase.instance.client.auth.currentUser;
-    final userName = user?.userMetadata?['full_name'] ?? 'Student';
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -273,7 +528,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome Back, $userName!',
+                  'Welcome Back, ${_studentInfo['first_name']?.toString() ?? 'Student'}!',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -282,7 +537,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Grade 10 • ${_studentProgress['progress_percentage'] ?? 0}% Complete',
+                  'Ready to learn something new today?',
                   style: TextStyle(
                     fontSize: 14,
                     color: _getTextColor().withOpacity(0.6),
@@ -297,9 +552,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildProgressSection() {
-    final progress = _studentProgress['progress_percentage'] ?? 0;
-    final completed = _studentProgress['completed_lessons'] ?? 0;
-    final total = _studentProgress['total_lessons'] ?? 0;
+    final progress =
+        (_studentProgress['progress_percentage'] as num?)?.toInt() ?? 0;
+    final completed =
+        (_studentProgress['completed_lessons'] as num?)?.toInt() ?? 0;
+    final total = (_studentProgress['total_lessons'] as num?)?.toInt() ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -382,35 +639,183 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title.toUpperCase(),
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: _getTextColor().withOpacity(0.5),
-        letterSpacing: 1.2,
+  Widget _buildProgressDetailSection() {
+    final progress =
+        (_studentProgress['progress_percentage'] as num?)?.toInt() ?? 0;
+    final completed =
+        (_studentProgress['completed_lessons'] as num?)?.toInt() ?? 0;
+    final total = (_studentProgress['total_lessons'] as num?)?.toInt() ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildProgressStat('Completed', '$completed', Icons.check_circle),
+              _buildProgressStat('Total', '$total', Icons.library_books),
+              _buildProgressStat('Progress', '$progress%', Icons.trending_up),
+            ],
+          ),
+          const SizedBox(height: 16),
+          LinearProgressIndicator(
+            value: progress / 100,
+            backgroundColor: _getBorderColor(),
+            color: const Color(0xFF4CAF50),
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildActivityCard(
-    String title,
-    String subject,
-    IconData icon,
-    String duration,
-    String action,
-    Color color, {
-    VoidCallback? onTap,
-  }) {
+  Widget _buildProfileStats() {
+    final progress =
+        (_studentProgress['progress_percentage'] as num?)?.toInt() ?? 0;
+    final completed =
+        (_studentProgress['completed_lessons'] as num?)?.toInt() ?? 0;
+    final total = (_studentProgress['total_lessons'] as num?)?.toInt() ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildProfileStatItem(
+              'Lessons Completed', '$completed', Icons.check_circle),
+          const SizedBox(height: 16),
+          _buildProfileStatItem('Total Lessons', '$total', Icons.video_library),
+          const SizedBox(height: 16),
+          _buildProfileStatItem('Progress', '$progress%', Icons.trending_up),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileStatItem(String label, String value, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF4CAF50)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              color: _getTextColor().withOpacity(0.8),
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: _getTextColor(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProgressStat(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: const Color(0xFF4CAF50), size: 24),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: _getTextColor(),
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: _getTextColor().withOpacity(0.6),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(
+      String title, String actionText, VoidCallback onAction) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: _getTextColor(),
+          ),
+        ),
+        if (actionText.isNotEmpty)
+          TextButton(
+            onPressed: onAction,
+            child: Text(
+              actionText,
+              style: const TextStyle(
+                color: Color(0xFF4CAF50),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLessonList(List<Map<String, dynamic>> lessons) {
+    return Column(
+      children: lessons.map((lesson) => _buildLessonCard(lesson)).toList(),
+    );
+  }
+
+  Widget _buildLessonCard(Map<String, dynamic> lesson) {
+    final educator = lesson['educator'] as Map<String, dynamic>?;
+    final educatorName =
+        educator?['full_name']?.toString() ?? 'Unknown Educator';
+    final subject = lesson['subject']?.toString() ?? 'General';
+    final title = lesson['title']?.toString() ?? 'Untitled Lesson';
+    final duration = (lesson['duration_minutes'] as num?)?.toInt() ?? 15;
+    final views = (lesson['views'] as num?)?.toInt();
+
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => _navigateToLesson(lesson),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: _getCardColor(),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -422,15 +827,19 @@ class _StudentDashboardState extends State<StudentDashboard> {
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: _getSubjectColor(subject).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: color, size: 24),
+              child: Icon(
+                _getSubjectIcon(subject),
+                color: _getSubjectColor(subject),
+                size: 24,
+              ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -447,56 +856,181 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    subject,
+                    'By $educatorName • $subject',
                     style: TextStyle(
                       fontSize: 14,
                       color: _getTextColor().withOpacity(0.6),
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: _getTextColor().withOpacity(0.4),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$duration min',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getTextColor().withOpacity(0.6),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (views != null)
+                        Text(
+                          '$views views',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _getTextColor().withOpacity(0.6),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 16,
-                      color: _getTextColor().withOpacity(0.4),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      duration,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _getTextColor().withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    action,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLessonGrid(List<Map<String, dynamic>> lessons) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.8,
+      ),
+      itemCount: lessons.length,
+      itemBuilder: (context, index) {
+        final lesson = lessons[index];
+        return _buildLessonGridCard(lesson);
+      },
+    );
+  }
+
+  Widget _buildLessonGridCard(Map<String, dynamic> lesson) {
+    final subject = lesson['subject']?.toString() ?? 'General';
+    final title = lesson['title']?.toString() ?? 'Untitled Lesson';
+    final duration = (lesson['duration_minutes'] as num?)?.toInt() ?? 15;
+
+    return GestureDetector(
+      onTap: () => _navigateToLesson(lesson),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _getCardColor(),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 100,
+              decoration: BoxDecoration(
+                color: _getSubjectColor(subject).withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Center(
+                child: Icon(
+                  _getSubjectIcon(subject),
+                  color: _getSubjectColor(subject),
+                  size: 32,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _getTextColor(),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subject,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _getTextColor().withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 12,
+                        color: _getTextColor().withOpacity(0.4),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$duration min',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _getTextColor().withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: 'Search lessons...',
+          hintStyle: TextStyle(color: _getTextColor().withOpacity(0.5)),
+          prefixIcon:
+              Icon(Icons.search, color: _getTextColor().withOpacity(0.5)),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        onChanged: (value) {
+          _logInfo('Search query: $value');
+        },
       ),
     );
   }
@@ -523,16 +1057,26 @@ class _StudentDashboardState extends State<StudentDashboard> {
         'icon': Icons.language,
         'color': const Color(0xFF9C27B0)
       },
+      {
+        'name': 'Physics',
+        'icon': Icons.rocket_launch,
+        'color': const Color(0xFF607D8B)
+      },
+      {
+        'name': 'Chemistry',
+        'icon': Icons.emoji_objects,
+        'color': const Color(0xFF795548)
+      },
     ];
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+        crossAxisCount: 3,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.5,
+        childAspectRatio: 1.0,
       ),
       itemCount: subjects.length,
       itemBuilder: (context, index) {
@@ -548,18 +1092,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   Widget _buildSubjectCard(String name, IconData icon, Color color) {
     return GestureDetector(
-      onTap: () {
-        // Navigate to subject lessons
-        Navigator.pushNamed(
-          context,
-          '/student/subject-lessons',
-          arguments: name,
-        );
-      },
+      onTap: () => _navigateToSubjectLessons(name),
       child: Container(
         decoration: BoxDecoration(
           color: _getCardColor(),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -572,25 +1109,50 @@ class _StudentDashboardState extends State<StudentDashboard> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: color, size: 24),
+              child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(height: 8),
             Text(
               name,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: _getTextColor(),
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Icon(
+            Icons.video_library_outlined,
+            size: 64,
+            color: _getTextColor().withOpacity(0.3),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 16,
+              color: _getTextColor().withOpacity(0.5),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -607,6 +1169,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
       case 'languages':
       case 'language':
         return Icons.language;
+      case 'physics':
+        return Icons.rocket_launch;
+      case 'chemistry':
+        return Icons.emoji_objects;
       default:
         return Icons.school;
     }
@@ -624,132 +1190,22 @@ class _StudentDashboardState extends State<StudentDashboard> {
       case 'languages':
       case 'language':
         return const Color(0xFF9C27B0);
+      case 'physics':
+        return const Color(0xFF607D8B);
+      case 'chemistry':
+        return const Color(0xFF795548);
       default:
         return const Color(0xFF607D8B);
     }
   }
 
-  Widget _buildLiveSessionsTab() {
-    return _buildPlaceholderTab(
-      Icons.live_tv,
-      'Live Sessions',
-      'Join scheduled sessions with educators',
-      'View Schedule',
-      () => Navigator.pushNamed(context, '/student/live-session'),
-    );
-  }
-
-  Widget _buildHomeworkTab() {
-    return _buildPlaceholderTab(
-      Icons.assignment_turned_in,
-      'Assignments',
-      'View and submit your work',
-      'View Assignments',
-      () => Navigator.pushNamed(context, '/student/homework'),
-    );
-  }
-
-  Widget _buildProfileTab() {
-    return _buildPlaceholderTab(
-      Icons.account_circle,
-      'Profile',
-      'Manage your account and progress',
-      'Edit Profile',
-      () => Navigator.pushNamed(context, '/student/profile'),
-    );
-  }
-
-  Widget _buildPlaceholderTab(
-    IconData icon,
-    String title,
-    String subtitle,
-    String buttonText,
-    VoidCallback onPressed,
-  ) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: _getCardColor(),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(
-                icon,
-                size: 48,
-                color: _getTextColor().withOpacity(0.6),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: _getTextColor(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: _getTextColor().withOpacity(0.6),
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: onPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
-              ),
-              child: Text(buttonText),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIconButton(IconData icon) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      child: IconButton(
-        icon: Icon(icon, color: _getTextColor().withOpacity(0.7)),
-        onPressed: () {},
-        style: IconButton.styleFrom(
-          backgroundColor: _getCardColor().withOpacity(0.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-    );
-  }
-
   BottomNavigationBar _buildBottomNavigationBar() {
     return BottomNavigationBar(
       currentIndex: _currentIndex,
-      onTap: (index) => setState(() => _currentIndex = index),
+      onTap: (index) {
+        _logInfo('Bottom navigation changed to index: $index');
+        setState(() => _currentIndex = index);
+      },
       type: BottomNavigationBarType.fixed,
       backgroundColor: _getCardColor(),
       selectedItemColor: const Color(0xFF4CAF50),
@@ -758,19 +1214,19 @@ class _StudentDashboardState extends State<StudentDashboard> {
       unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
+          icon: Icon(Icons.home),
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.live_tv),
-          label: 'Live',
+          icon: Icon(Icons.explore),
+          label: 'Browse',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.assignment_turned_in),
-          label: 'Assignments',
+          icon: Icon(Icons.trending_up),
+          label: 'Progress',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.account_circle),
+          icon: Icon(Icons.person),
           label: 'Profile',
         ),
       ],
