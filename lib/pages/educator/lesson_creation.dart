@@ -1,18 +1,15 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:io';
-// ignore: unused_import
-import 'dart:math';
 import 'dart:async';
-// ignore: unnecessary_import
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:signsync_academy/pages/educator/video_editor.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 
 // Web-specific imports
 // ignore: avoid_web_libraries_in_flutter
@@ -20,6 +17,8 @@ import 'dart:html' as html;
 
 import '../../../core/services/lesson_creation_service.dart';
 import '../../../core/models/lesson_data.dart';
+import '../../../core/services/video_editor_service.dart';
+import '../../educator/video_editor.dart';
 
 class LessonCreation extends StatefulWidget {
   const LessonCreation({super.key});
@@ -30,6 +29,7 @@ class LessonCreation extends StatefulWidget {
 
 class _LessonCreationState extends State<LessonCreation> {
   final LessonCreationService _lessonService = LessonCreationService();
+  final VideoEditorService _videoEditorService = VideoEditorService();
   late LessonData _lessonData;
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -49,9 +49,9 @@ class _LessonCreationState extends State<LessonCreation> {
 
   // Video player controllers
   VideoPlayerController? _videoPlayerController;
-  ChewieController? _chewieController;
   bool _isVideoLoading = false;
   bool _hasVideoError = false;
+  bool _isPlaying = false;
 
   // Database fetched data
   List<String> _availableSubjects = [];
@@ -90,7 +90,6 @@ class _LessonCreationState extends State<LessonCreation> {
     _descriptionController.dispose();
     _recordingTimer?.cancel();
     _videoPlayerController?.dispose();
-    _chewieController?.dispose();
     super.dispose();
   }
 
@@ -223,6 +222,74 @@ class _LessonCreationState extends State<LessonCreation> {
     }
   }
 
+  // ========== VIDEO EDITING METHOD ==========
+
+  Future<void> _editVideo() async {
+    if (_lessonData.videoFile == null && _webVideoBytes == null) {
+      _showInfo('Please upload a video first');
+      return;
+    }
+
+    try {
+      setState(() {
+        _isUploading = true;
+      });
+
+      String? videoPath;
+
+      if (kIsWeb) {
+        if (_webVideoBytes != null) {
+          _showInfo(
+              'Video editing for web is being prepared. Please download and edit locally for now.');
+          return;
+        }
+      } else {
+        if (_lessonData.videoFile != null) {
+          videoPath = _lessonData.videoFile!.path;
+        }
+      }
+
+      if (videoPath != null) {
+        final editedVideoPath = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoEditor(filePath: videoPath!),
+          ),
+        );
+
+        if (editedVideoPath != null && editedVideoPath is String) {
+          setState(() {
+            _lessonData = _lessonData.copyWith(
+              videoFile: File(editedVideoPath),
+              durationText: 'Recalculating duration...',
+            );
+            _isExtractingDuration = true;
+          });
+
+          final newDuration =
+              await _lessonService.getVideoDuration(File(editedVideoPath));
+
+          setState(() {
+            _lessonData = _lessonData.copyWith(
+              videoDuration: newDuration,
+              durationText: _formatDurationForDisplay(newDuration),
+            );
+            _isExtractingDuration = false;
+          });
+
+          await _initializeVideoPlayer(videoFile: File(editedVideoPath));
+          _showSuccess('Video edited successfully!');
+        }
+      }
+    } catch (e) {
+      _handleUploadError(e);
+    } finally {
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
+
   Future<void> _initializeWebVideoPreview(
       Uint8List videoBytes, String fileName) async {
     try {
@@ -232,60 +299,12 @@ class _LessonCreationState extends State<LessonCreation> {
       });
 
       await _videoPlayerController?.dispose();
-      _chewieController?.dispose();
 
       final blobUrl = await _createBlobUrl(videoBytes);
 
       if (blobUrl != null) {
         _videoPlayerController = VideoPlayerController.network(blobUrl);
         await _videoPlayerController!.initialize();
-
-        _chewieController = ChewieController(
-          videoPlayerController: _videoPlayerController!,
-          autoPlay: false,
-          looping: false,
-          allowFullScreen: true,
-          allowMuting: true,
-          showControls: true,
-          materialProgressColors: ChewieProgressColors(
-            playedColor: _primaryColor,
-            handleColor: _primaryColor,
-            backgroundColor: Colors.grey,
-            bufferedColor: Colors.grey.withOpacity(0.5),
-          ),
-          placeholder: Container(
-            color: Colors.grey.shade900,
-            child: const Center(
-              child:
-                  Icon(Icons.videocam_rounded, color: Colors.white, size: 50),
-            ),
-          ),
-          errorBuilder: (context, errorMessage) {
-            return Container(
-              color: Colors.grey.shade900,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline_rounded,
-                        color: _errorColor, size: 50),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Error playing video preview',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Video will be available after upload',
-                      style: TextStyle(color: Colors.white70),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
 
         setState(() {
           _isVideoLoading = false;
@@ -328,7 +347,6 @@ class _LessonCreationState extends State<LessonCreation> {
       });
 
       await _videoPlayerController?.dispose();
-      _chewieController?.dispose();
 
       if (videoFile != null) {
         _videoPlayerController = VideoPlayerController.file(videoFile);
@@ -340,51 +358,14 @@ class _LessonCreationState extends State<LessonCreation> {
 
       await _videoPlayerController!.initialize();
 
-      _chewieController = ChewieController(
-        videoPlayerController: _videoPlayerController!,
-        autoPlay: false,
-        looping: false,
-        allowFullScreen: true,
-        allowMuting: true,
-        showControls: true,
-        materialProgressColors: ChewieProgressColors(
-          playedColor: _primaryColor,
-          handleColor: _primaryColor,
-          backgroundColor: Colors.grey,
-          bufferedColor: Colors.grey.withOpacity(0.5),
-        ),
-        placeholder: Container(
-          color: Colors.grey.shade900,
-          child: const Center(
-            child: Icon(Icons.videocam_rounded, color: Colors.white, size: 50),
-          ),
-        ),
-        errorBuilder: (context, errorMessage) {
-          return Container(
-            color: Colors.grey.shade900,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline_rounded,
-                      color: _errorColor, size: 50),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Error playing video',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    errorMessage,
-                    style: const TextStyle(color: Colors.white70),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
+      // Add listener to update play state
+      _videoPlayerController!.addListener(() {
+        if (mounted) {
+          setState(() {
+            _isPlaying = _videoPlayerController!.value.isPlaying;
+          });
+        }
+      });
 
       setState(() {
         _isVideoLoading = false;
@@ -397,13 +378,24 @@ class _LessonCreationState extends State<LessonCreation> {
     }
   }
 
+  void _togglePlayPause() {
+    if (_videoPlayerController != null &&
+        _videoPlayerController!.value.isInitialized) {
+      if (_isPlaying) {
+        _videoPlayerController!.pause();
+      } else {
+        _videoPlayerController!.play();
+      }
+      setState(() {
+        _isPlaying = !_isPlaying;
+      });
+    }
+  }
+
   Future<Duration> _estimateVideoDurationWeb(int fileSizeBytes) async {
-    // More accurate estimation based on typical video bitrates
-    // Average bitrate: ~1-2 Mbps for standard quality, ~4-8 Mbps for HD
-    const averageBitrateMbps = 2.0; // Conservative estimate
+    const averageBitrateMbps = 2.0;
     final fileSizeBits = fileSizeBytes * 8;
     final durationSeconds = fileSizeBits / (averageBitrateMbps * 1000000);
-
     final estimatedMinutes = (durationSeconds / 60).ceil();
     return Duration(minutes: estimatedMinutes.clamp(1, 180));
   }
@@ -555,8 +547,8 @@ class _LessonCreationState extends State<LessonCreation> {
   // ========== VIDEO PLAYBACK METHODS ==========
 
   void _playVideoFullScreen() {
-    if (_chewieController != null &&
-        _chewieController!.videoPlayerController.value.isInitialized) {
+    if (_videoPlayerController != null &&
+        _videoPlayerController!.value.isInitialized) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -568,7 +560,10 @@ class _LessonCreationState extends State<LessonCreation> {
             ),
             backgroundColor: Colors.black,
             body: Center(
-              child: Chewie(controller: _chewieController!),
+              child: AspectRatio(
+                aspectRatio: _videoPlayerController!.value.aspectRatio,
+                child: VideoPlayer(_videoPlayerController!),
+              ),
             ),
           ),
         ),
@@ -640,8 +635,8 @@ class _LessonCreationState extends State<LessonCreation> {
       );
     }
 
-    if (_chewieController != null &&
-        _chewieController!.videoPlayerController.value.isInitialized) {
+    if (_videoPlayerController != null &&
+        _videoPlayerController!.value.isInitialized) {
       return Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -655,7 +650,75 @@ class _LessonCreationState extends State<LessonCreation> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: Chewie(controller: _chewieController!),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AspectRatio(
+                aspectRatio: _videoPlayerController!.value.aspectRatio,
+                child: VideoPlayer(_videoPlayerController!),
+              ),
+              // Play/Pause overlay
+              if (!_isPlaying)
+                Container(
+                  color: Colors.black.withOpacity(0.3),
+                  child: Center(
+                    child: IconButton(
+                      icon: Icon(Icons.play_arrow_rounded,
+                          color: Colors.white, size: 50),
+                      onPressed: _togglePlayPause,
+                    ),
+                  ),
+                ),
+              // Controls
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.7),
+                        Colors.transparent
+                      ],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          _isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: Colors.white,
+                        ),
+                        onPressed: _togglePlayPause,
+                      ),
+                      Expanded(
+                        child: VideoProgressIndicator(
+                          _videoPlayerController!,
+                          allowScrubbing: true,
+                          colors: VideoProgressColors(
+                            playedColor: _primaryColor,
+                            bufferedColor: Colors.grey,
+                            backgroundColor: Colors.grey.withOpacity(0.3),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${_formatDurationForDisplay(_videoPlayerController!.value.position)} / ${_formatDurationForDisplay(_videoPlayerController!.value.duration)}',
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -790,6 +853,13 @@ class _LessonCreationState extends State<LessonCreation> {
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode) {
+      print('Video File: ${_lessonData.videoFile}');
+      print('Web Video Bytes: ${_webVideoBytes != null}');
+      print(
+          'Can Show Edit: ${_lessonData.videoFile != null || _webVideoBytes != null}');
+    }
+
     return Scaffold(
       backgroundColor: _getBackgroundColor(),
       appBar: _buildAppBar(),
@@ -920,25 +990,42 @@ class _LessonCreationState extends State<LessonCreation> {
   }
 
   Widget _buildVideoOptions() {
+    final hasVideo = _lessonData.videoFile != null || _webVideoBytes != null;
+
     return Column(
       children: [
-        if (_lessonData.videoFile != null ||
-            _lessonData.videoUrl != null ||
-            _webVideoBytes != null)
-          _buildVideoPreview(),
+        if (hasVideo) _buildVideoPreview(),
         const SizedBox(height: 16),
         Row(
           children: [
+            // Always show Upload/Replace button
             Expanded(
               child: _buildVideoOptionCard(
-                'Upload Video',
+                hasVideo ? 'Replace Video' : 'Upload Video',
                 Icons.upload_rounded,
                 _infoColor,
-                'Choose from gallery',
+                hasVideo ? 'Choose different video' : 'Choose from gallery',
                 onTap: _uploadVideo,
               ),
             ),
             const SizedBox(width: 16),
+
+            // Show Edit button only when video exists and not on web
+            if (hasVideo && !kIsWeb)
+              Expanded(
+                child: _buildVideoOptionCard(
+                  'Edit Video',
+                  Icons.edit_rounded,
+                  _warningColor,
+                  'Trim & enhance',
+                  onTap: _editVideo,
+                ),
+              ),
+
+            // Add spacing if Edit button is shown
+            if (hasVideo && !kIsWeb) const SizedBox(width: 16),
+
+            // Always show Record button
             Expanded(
               child: _buildVideoOptionCard(
                 'Record Video',
@@ -1039,6 +1126,7 @@ class _LessonCreationState extends State<LessonCreation> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Play Video Button
                   ElevatedButton.icon(
                     onPressed: _playVideoFullScreen,
                     icon: const Icon(Icons.play_arrow_rounded),
@@ -1048,6 +1136,21 @@ class _LessonCreationState extends State<LessonCreation> {
                       foregroundColor: Colors.white,
                     ),
                   ),
+
+                  // Edit Video Button - ALWAYS SHOW IF VIDEO EXISTS
+                  if (!kIsWeb &&
+                      (_lessonData.videoFile != null || _webVideoBytes != null))
+                    ElevatedButton.icon(
+                      onPressed: _editVideo,
+                      icon: const Icon(Icons.edit_rounded),
+                      label: const Text('Edit Video'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _warningColor,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+
+                  // Replace Video Button
                   IconButton(
                     onPressed: _uploadVideo,
                     icon: const Icon(Icons.replay_rounded),
@@ -1776,6 +1879,16 @@ class _LessonCreationState extends State<LessonCreation> {
       SnackBar(
         content: Text(message),
         backgroundColor: _infoColor,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: _successColor,
         duration: const Duration(seconds: 3),
       ),
     );

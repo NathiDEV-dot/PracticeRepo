@@ -1,55 +1,321 @@
 // ignore_for_file: deprecated_member_use
 
-// ignore: unused_import
-import 'dart:io'; // Add this import
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
+import 'package:video_compress/video_compress.dart';
+import 'package:path_provider/path_provider.dart';
+import '../../../core/services/video_editor_service.dart';
 
 class VideoEditor extends StatefulWidget {
-  final String filePath; // Change from File? to String
+  final String filePath;
 
-  const VideoEditor(
-      {super.key,
-      required this.filePath}); // Remove the extra videoFile parameter
+  const VideoEditor({super.key, required this.filePath});
 
   @override
   State<VideoEditor> createState() => _VideoEditorState();
 }
 
 class _VideoEditorState extends State<VideoEditor> {
+  late VideoPlayerController _videoController;
   bool _isPlaying = false;
-  bool _enableZoom = false;
-  double _zoomLevel = 1.0;
-  double _videoProgress = 0.3;
-  Duration _currentTime = const Duration(seconds: 45);
-  final Duration _totalDuration = const Duration(minutes: 2, seconds: 30);
+  bool _isInitialized = false;
+  bool _isExporting = false;
+  double _exportProgress = 0.0;
 
-  // Timeline markers for cuts
-  final List<double> _cutMarkers = [0.2, 0.5, 0.8];
-  double _draggingPosition = 0.3;
+  // Editing state
+  Duration _trimStart = Duration.zero;
+  Duration _trimEnd = Duration.zero;
+  final List<Duration> _cutMarkers = [];
+  double _playbackSpeed = 1.0;
+  final List<Map<String, Duration>> _selectedSegments = [];
+
+  // Service instance
+  final VideoEditorService _videoService = VideoEditorService();
+
+  // Video info
+  Map<String, dynamic> _videoInfo = {};
+
+  double get _videoProgress {
+    if (!_isInitialized ||
+        _videoController.value.duration.inMilliseconds == 0) {
+      return 0.0;
+    }
+    return _videoController.value.position.inMilliseconds /
+        _videoController.value.duration.inMilliseconds;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+    _loadVideoInfo();
+  }
+
+  Future<void> _initializeVideo() async {
+    try {
+      _videoController = VideoPlayerController.file(File(widget.filePath));
+      await _videoController.initialize();
+      _videoController.addListener(_videoListener);
+
+      setState(() {
+        _isInitialized = true;
+        _trimEnd = _videoController.value.duration;
+      });
+
+      _videoController.play();
+      _isPlaying = true;
+    } catch (e) {
+      _showSnackBar('Error loading video: $e');
+    }
+  }
+
+  Future<void> _loadVideoInfo() async {
+    try {
+      final info = await _videoService.getVideoInfo(widget.filePath);
+      setState(() {
+        _videoInfo = info;
+      });
+    } catch (e) {
+      print('Error loading video info: $e');
+    }
+  }
+
+  void _videoListener() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  // Video processing methods
+  Future<void> _trimVideo() async {
+    if (!_isInitialized) return;
+
+    if (_trimStart == Duration.zero &&
+        _trimEnd == _videoController.value.duration) {
+      _showSnackBar('No trim points set');
+      return;
+    }
+
+    setState(() {
+      _isExporting = true;
+      _exportProgress = 0.0;
+    });
+
+    try {
+      final String? outputPath = await _videoService.trimVideoWithFFmpeg(
+        inputPath: widget.filePath,
+        startTime: _trimStart,
+        duration: _trimEnd - _trimStart,
+      );
+
+      setState(() {
+        _isExporting = false;
+      });
+
+      if (outputPath != null) {
+        _showSnackBar('Video trimmed successfully!');
+        if (mounted) {
+          Navigator.pop(context, outputPath);
+        }
+      } else {
+        _showSnackBar('Failed to trim video');
+      }
+    } catch (e) {
+      setState(() {
+        _isExporting = false;
+      });
+      _showSnackBar('Error trimming video: $e');
+    }
+  }
+
+  Future<void> _compressVideo() async {
+    setState(() {
+      _isExporting = true;
+      _exportProgress = 0.0;
+    });
+
+    try {
+      final MediaInfo? mediaInfo = await _videoService.compressVideo(
+        inputPath: widget.filePath,
+        quality: VideoQuality.MediumQuality,
+      );
+
+      setState(() {
+        _isExporting = false;
+      });
+
+      if (mediaInfo?.file != null) {
+        _showSnackBar('Video compressed successfully!');
+        if (mounted) {
+          Navigator.pop(context, mediaInfo!.file!.path);
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isExporting = false;
+      });
+      _showSnackBar('Error compressing video: $e');
+    }
+  }
+
+  Future<void> _changeSpeedWithService() async {
+    setState(() {
+      _isExporting = true;
+    });
+
+    try {
+      final String? outputPath = await _videoService.changePlaybackSpeed(
+        inputPath: widget.filePath,
+        speed: _playbackSpeed,
+      );
+
+      setState(() {
+        _isExporting = false;
+      });
+
+      if (outputPath != null) {
+        _showSnackBar('Speed changed successfully!');
+        if (mounted) {
+          Navigator.pop(context, outputPath);
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isExporting = false;
+      });
+      _showSnackBar('Error changing speed: $e');
+    }
+  }
+
+  Future<void> _extractSelectedSegments() async {
+    if (_selectedSegments.isEmpty) {
+      _showSnackBar('No segments selected');
+      return;
+    }
+
+    setState(() {
+      _isExporting = true;
+    });
+
+    try {
+      final String? outputPath = await _videoService.extractVideoSegment(
+        inputPath: widget.filePath,
+        segments: _selectedSegments,
+      );
+
+      setState(() {
+        _isExporting = false;
+      });
+
+      if (outputPath != null) {
+        _showSnackBar('Segments extracted successfully!');
+        if (mounted) {
+          Navigator.pop(context, outputPath);
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isExporting = false;
+      });
+      _showSnackBar('Error extracting segments: $e');
+    }
+  }
+
+  void _changePlaybackSpeed(double speed) async {
+    if (!_isInitialized) return;
+
+    setState(() {
+      _playbackSpeed = speed;
+    });
+    await _videoController.setPlaybackSpeed(speed);
+    _showSnackBar('Playback speed: ${speed}x');
+  }
+
+  void _setTrimStart() {
+    if (!_isInitialized) return;
+
+    setState(() {
+      _trimStart = _videoController.value.position;
+    });
+    _showSnackBar(
+        'Trim start set to ${_videoService.formatDuration(_trimStart)}');
+  }
+
+  void _setTrimEnd() {
+    if (!_isInitialized) return;
+
+    setState(() {
+      _trimEnd = _videoController.value.position;
+    });
+    _showSnackBar('Trim end set to ${_videoService.formatDuration(_trimEnd)}');
+  }
+
+  void _addCutMarker() {
+    if (!_isInitialized) return;
+
+    setState(() {
+      _cutMarkers.add(_videoController.value.position);
+    });
+    _showSnackBar(
+        'Cut marker added at ${_videoService.formatDuration(_videoController.value.position)}');
+  }
+
+  void _addSegment() {
+    if (!_isInitialized) return;
+
+    setState(() {
+      _selectedSegments.add({
+        'start': _trimStart,
+        'end': _trimEnd,
+      });
+    });
+    _showSnackBar(
+        'Segment added from ${_videoService.formatDuration(_trimStart)} to ${_videoService.formatDuration(_trimEnd)}');
+  }
+
+  void _seekToMarker(Duration marker) {
+    if (!_isInitialized) return;
+    _videoController.seekTo(marker);
+  }
+
+  void _togglePlayPause() {
+    if (!_isInitialized) return;
+
+    setState(() {
+      if (_isPlaying) {
+        _videoController.pause();
+      } else {
+        _videoController.play();
+      }
+      _isPlaying = !_isPlaying;
+    });
+  }
+
+  void _seekToPosition(double progress) {
+    if (!_isInitialized) return;
+
+    final duration = _videoController.value.duration;
+    final position = duration * progress;
+    _videoController.seekTo(position);
+  }
+
+  void _clearAllMarkers() {
+    setState(() {
+      _cutMarkers.clear();
+      _selectedSegments.clear();
+      _trimStart = Duration.zero;
+      _trimEnd = _videoController.value.duration;
+    });
+    _showSnackBar('All markers cleared');
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _getBackgroundColor(),
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          // Video Preview with Zoom
-          Expanded(
-            flex: 4,
-            child: _buildVideoPreview(),
-          ),
-
-          // Timeline Section
-          Expanded(
-            flex: 3,
-            child: _buildTimelineSection(),
-          ),
-
-          // Editing Tools
-          _buildEditingTools(),
-        ],
-      ),
+      body: !_isInitialized ? _buildLoadingState() : _buildEditorInterface(),
     );
   }
 
@@ -66,43 +332,108 @@ class _VideoEditorState extends State<VideoEditor> {
           child: Icon(Icons.arrow_back_ios_new_rounded,
               color: _getTextColor(), size: 18),
         ),
-        onPressed: () => Navigator.pop(context),
+        onPressed: _isExporting ? null : () => Navigator.pop(context),
       ),
-      title: Text(
-        'Video Editor',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          color: _getTextColor(),
-          letterSpacing: -0.3,
-        ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Video Editor',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: _getTextColor(),
+            ),
+          ),
+          if (_videoInfo.isNotEmpty)
+            Text(
+              '${_videoService.formatFileSize(_videoInfo['fileSize'] ?? 0)} • ${_videoService.formatDuration(Duration(milliseconds: _videoInfo['duration']?.toInt() ?? 0))}',
+              style: TextStyle(
+                fontSize: 12,
+                color: _getTextColor().withOpacity(0.6),
+              ),
+            ),
+        ],
       ),
       backgroundColor: Colors.transparent,
       elevation: 0,
-      centerTitle: false,
       actions: [
-        Container(
-          margin: const EdgeInsets.only(right: 16),
-          child: ElevatedButton.icon(
-            onPressed: _exportVideo,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4361EE),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+        if (_isExporting)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: _primaryColor),
+                ),
+                const SizedBox(width: 8),
+                Text('Processing...', style: TextStyle(color: _getTextColor())),
+              ],
             ),
-            icon: const Icon(Icons.done_rounded, size: 18),
-            label: const Text(
-              'Export',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+          )
+        else
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: ElevatedButton.icon(
+              onPressed: _trimVideo,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
               ),
+              icon: const Icon(Icons.done_rounded, size: 18),
+              label: const Text('Export'),
             ),
           ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: _primaryColor),
+          const SizedBox(height: 16),
+          Text(
+            'Loading video...',
+            style: TextStyle(color: _getTextColor(), fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditorInterface() {
+    return Column(
+      children: [
+        // Video Preview
+        Expanded(
+          flex: 4,
+          child: _buildVideoPreview(),
         ),
+
+        // Timeline & Progress
+        Expanded(
+          flex: 2,
+          child: _buildTimelineSection(),
+        ),
+
+        // Editing Tools
+        Expanded(
+          flex: 3,
+          child: _buildEditingTools(),
+        ),
+
+        // Export Progress
+        if (_isExporting) _buildExportProgress(),
       ],
     );
   }
@@ -124,36 +455,12 @@ class _VideoEditorState extends State<VideoEditor> {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            // Video Background
-            Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: Colors.grey[900],
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.videocam_rounded,
-                    size: 80,
-                    color: Colors.grey[700],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Editing: ${widget.filePath.split('/').last}', // Show filename
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
+            AspectRatio(
+              aspectRatio: _videoController.value.aspectRatio,
+              child: VideoPlayer(_videoController),
             ),
 
-            // Zoom Overlay
-            if (_enableZoom && _zoomLevel > 1.0) _buildZoomOverlay(),
-
-            // Play/Pause Controls
+            // Play/Pause Overlay
             Positioned.fill(
               child: Center(
                 child: AnimatedOpacity(
@@ -181,7 +488,7 @@ class _VideoEditorState extends State<VideoEditor> {
               ),
             ),
 
-            // Top Controls
+            // Top Info Bar
             Positioned(
               top: 16,
               left: 16,
@@ -189,24 +496,20 @@ class _VideoEditorState extends State<VideoEditor> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Zoom Indicator
-                  if (_enableZoom)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${_zoomLevel.toStringAsFixed(1)}x',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
+                  // Speed Indicator
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20),
                     ),
+                    child: Text(
+                      '${_playbackSpeed}x',
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ),
 
                   // Time Indicator
                   Container(
@@ -217,270 +520,264 @@ class _VideoEditorState extends State<VideoEditor> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '${_formatDuration(_currentTime)} / ${_formatDuration(_totalDuration)}',
+                      '${_videoService.formatDuration(_videoController.value.position)} / ${_videoService.formatDuration(_videoController.value.duration)}',
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                        fontFamily: 'RobotoMono',
-                      ),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'RobotoMono'),
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildZoomOverlay() {
-    return Positioned(
-      right: 20,
-      bottom: 20,
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.yellow, width: 2),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: Container(
-            color: Colors.black.withOpacity(0.3),
-            child: Center(
-              child: Text(
-                '${_zoomLevel.toStringAsFixed(1)}x\nZoom',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.yellow,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+            // Trim Indicators
+            if (_trimStart > Duration.zero ||
+                _trimEnd < _videoController.value.duration)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (_trimStart > Duration.zero)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Start: ${_videoService.formatDuration(_trimStart)}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    if (_trimEnd < _videoController.value.duration)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'End: ${_videoService.formatDuration(_trimEnd)}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ),
-          ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildTimelineSection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
-          // Timeline Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Timeline',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: _getTextColor(),
-                ),
-              ),
-              Text(
-                'Drag to scrub • Tap markers to cut',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _getTextColor().withOpacity(0.6),
-                ),
+              Text('Timeline',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: _getTextColor())),
+              IconButton(
+                icon: Icon(Icons.clear_all,
+                    color: _getTextColor().withOpacity(0.6)),
+                onPressed: _clearAllMarkers,
+                tooltip: 'Clear all markers',
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
-          // Main Timeline
+          // Timeline visualization
           Expanded(
             child: Container(
               decoration: BoxDecoration(
                 color: _getCardColor(),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: _getBorderColor().withOpacity(0.5)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
               child: Column(
                 children: [
-                  // Timeline Visualization
                   Expanded(
                     child: GestureDetector(
-                      onTapDown: (details) => _handleTimelineTap(details),
-                      onPanUpdate: (details) => _handleTimelineDrag(details),
+                      onTapDown: (details) {
+                        final box = context.findRenderObject() as RenderBox?;
+                        if (box == null) return;
+
+                        final localPosition =
+                            box.globalToLocal(details.globalPosition);
+                        final width = box.size.width;
+                        final progress =
+                            (localPosition.dx / width).clamp(0.0, 1.0);
+                        _seekToPosition(progress);
+                      },
                       child: Container(
                         margin: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
                         child: Stack(
                           children: [
                             // Timeline Background
-                            _buildTimelineBackground(),
+                            Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.grey[400]!,
+                                    Colors.grey[600]!,
+                                    Colors.grey[400]!
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+
+                            // Trim area
+                            if (_trimStart > Duration.zero ||
+                                _trimEnd < _videoController.value.duration)
+                              Positioned(
+                                left: (_trimStart.inMilliseconds /
+                                        _videoController
+                                            .value.duration.inMilliseconds) *
+                                    (screenWidth - 64),
+                                right: (1 -
+                                        (_trimEnd.inMilliseconds /
+                                            _videoController.value.duration
+                                                .inMilliseconds)) *
+                                    (screenWidth - 64),
+                                top: 0,
+                                bottom: 0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: _primaryColor.withOpacity(0.3),
+                                    border: Border.all(color: _primaryColor),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+
+                            // Progress
+                            Container(
+                              height: 40,
+                              width: (screenWidth - 64) * _videoProgress,
+                              decoration: BoxDecoration(
+                                color: _primaryColor.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
 
                             // Cut Markers
-                            ..._buildCutMarkers(),
-
-                            // Progress Indicator (Draggable)
-                            _buildProgressIndicator(),
+                            ..._cutMarkers.map((marker) {
+                              if (_videoController
+                                      .value.duration.inMilliseconds ==
+                                  0) {
+                                return const SizedBox.shrink();
+                              }
+                              final position = marker.inMilliseconds /
+                                  _videoController
+                                      .value.duration.inMilliseconds;
+                              return Positioned(
+                                left: (screenWidth - 64) * position,
+                                top: 0,
+                                bottom: 0,
+                                child: GestureDetector(
+                                  onTap: () => _seekToMarker(marker),
+                                  child: Container(
+                                    width: 4,
+                                    color: Colors.red,
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Container(
+                                        width: 16,
+                                        height: 16,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.place,
+                                            color: Colors.white, size: 12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
                           ],
                         ),
                       ),
                     ),
                   ),
 
-                  // Time Labels
+                  // Time labels
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _formatDuration(_currentTime),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _getTextColor(),
-                            fontFamily: 'RobotoMono',
-                          ),
-                        ),
-                        Text(
-                          _formatDuration(_totalDuration),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _getTextColor(),
-                            fontFamily: 'RobotoMono',
-                          ),
-                        ),
+                        Text(_videoService.formatDuration(_trimStart),
+                            style: TextStyle(
+                                fontSize: 12, color: _getTextColor())),
+                        Text(_videoService.formatDuration(_trimEnd),
+                            style: TextStyle(
+                                fontSize: 12, color: _getTextColor())),
                       ],
                     ),
                   ),
+
+                  // Segments list
+                  if (_selectedSegments.isNotEmpty)
+                    Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _selectedSegments.length,
+                        itemBuilder: (context, index) {
+                          final segment = _selectedSegments[index];
+                          return Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.orange),
+                            ),
+                            child: Text(
+                              '${_videoService.formatDuration(segment['start']!)}-${_videoService.formatDuration(segment['end']!)}',
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTimelineBackground() {
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.grey[400]!,
-            Colors.grey[600]!,
-            Colors.grey[400]!,
-          ],
-          stops: const [0.0, 0.5, 1.0],
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-    );
-  }
-
-  List<Widget> _buildCutMarkers() {
-    return _cutMarkers.map((position) {
-      return Positioned(
-        left: position * (MediaQuery.of(context).size.width - 32),
-        top: 0,
-        bottom: 0,
-        child: GestureDetector(
-          onTap: () => _deleteCutMarker(position),
-          child: Container(
-            width: 4,
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444),
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Container(
-                width: 16,
-                height: 16,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEF4444),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.close_rounded,
-                  color: Colors.white,
-                  size: 12,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }).toList();
-  }
-
-  Widget _buildProgressIndicator() {
-    return Positioned(
-      left: _draggingPosition * (MediaQuery.of(context).size.width - 32),
-      top: 0,
-      bottom: 0,
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            final newPosition = _draggingPosition +
-                (details.delta.dx / (MediaQuery.of(context).size.width - 32));
-            _draggingPosition = newPosition.clamp(0.0, 1.0);
-            _videoProgress = _draggingPosition;
-            _currentTime = Duration(
-                milliseconds:
-                    (_totalDuration.inMilliseconds * _videoProgress).round());
-          });
-        },
-        child: Container(
-          width: 4,
-          decoration: BoxDecoration(
-            color: const Color(0xFF4361EE),
-            borderRadius: BorderRadius.circular(2),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF4361EE).withOpacity(0.5),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: const BoxDecoration(
-                color: Color(0xFF4361EE),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.drag_handle_rounded,
-                color: Colors.white,
-                size: 14,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -490,193 +787,103 @@ class _VideoEditorState extends State<VideoEditor> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _getCardColor(),
-        border: Border(
-          top: BorderSide(color: _getBorderColor()),
-        ),
+        border: Border(top: BorderSide(color: _getBorderColor())),
       ),
       child: Column(
         children: [
-          // Tool Categories
+          // Quick Actions
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildToolCategory(
-                  'Cut & Crop', Icons.content_cut_rounded, _buildCutTools()),
-              _buildToolCategory(
-                  'Zoom', Icons.zoom_in_map_rounded, _buildZoomTools()),
-              _buildToolCategory(
-                  'Effects', Icons.auto_awesome_rounded, _buildEffectTools()),
+              _buildToolButton(Icons.play_arrow, 'Play/Pause', _togglePlayPause,
+                  _primaryColor),
+              _buildToolButton(
+                  Icons.content_cut, 'Trim Start', _setTrimStart, Colors.green),
+              _buildToolButton(
+                  Icons.content_cut, 'Trim End', _setTrimEnd, Colors.red),
+              _buildToolButton(
+                  Icons.add, 'Add Marker', _addCutMarker, Colors.orange),
+              _buildToolButton(
+                  Icons.segment, 'Add Segment', _addSegment, Colors.purple),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Quick Actions
-          _buildQuickActions(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToolCategory(String title, IconData icon, Widget content) {
-    return Expanded(
-      child: Column(
-        children: [
+          // Speed Control
           Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: _primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _primaryColor.withOpacity(0.3)),
-            ),
-            child: Icon(icon, color: _primaryColor, size: 24),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: _getTextColor(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCutTools() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _buildToolButton(
-            'Split', Icons.call_split_rounded, () => _splitAtCurrentTime()),
-        _buildToolButton(
-            'Trim Start', Icons.vertical_align_top_rounded, () => _trimStart()),
-        _buildToolButton(
-            'Trim End', Icons.vertical_align_bottom_rounded, () => _trimEnd()),
-        _buildToolButton(
-            'Add Marker', Icons.add_rounded, () => _addCutMarker()),
-      ],
-    );
-  }
-
-  Widget _buildZoomTools() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: SwitchListTile(
-                title: Text(
-                  'Digital Zoom',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: _getTextColor(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text('Speed:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, color: _getTextColor())),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children:
+                        [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
+                      return ChoiceChip(
+                        label: Text('${speed}x'),
+                        selected: _playbackSpeed == speed,
+                        onSelected: (_) => _changePlaybackSpeed(speed),
+                        selectedColor: _primaryColor,
+                        labelStyle: TextStyle(
+                          color: _playbackSpeed == speed
+                              ? Colors.white
+                              : _getTextColor(),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
-                value: _enableZoom,
-                onChanged: (value) {
-                  setState(() => _enableZoom = value);
-                },
-                activeColor: _primaryColor,
-              ),
-            ),
-          ],
-        ),
-        if (_enableZoom) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Zoom Level: ${_zoomLevel.toStringAsFixed(1)}x',
-            style: TextStyle(
-              fontSize: 12,
-              color: _getTextColor().withOpacity(0.7),
+              ],
             ),
           ),
-          Slider(
-            value: _zoomLevel,
-            min: 1.0,
-            max: 3.0,
-            divisions: 20,
-            onChanged: (value) {
-              setState(() => _zoomLevel = value);
-            },
-            activeColor: _primaryColor,
+          const SizedBox(height: 16),
+
+          // Export Options
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _trimVideo,
+                icon: const Icon(Icons.cut),
+                label: const Text('Trim'),
+                style: _getButtonStyle(),
+              ),
+              ElevatedButton.icon(
+                onPressed: _compressVideo,
+                icon: const Icon(Icons.compress),
+                label: const Text('Compress'),
+                style: _getButtonStyle(),
+              ),
+              if (_selectedSegments.isNotEmpty)
+                ElevatedButton.icon(
+                  onPressed: _extractSelectedSegments,
+                  icon: const Icon(Icons.content_cut),
+                  label: const Text('Extract Segments'),
+                  style: _getButtonStyle(backgroundColor: Colors.orange),
+                ),
+            ],
           ),
         ],
-      ],
-    );
-  }
-
-  Widget _buildEffectTools() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _buildToolButton('Brightness', Icons.brightness_6_rounded, () {}),
-        _buildToolButton('Contrast', Icons.contrast_rounded, () {}),
-        _buildToolButton('Filters', Icons.filter_rounded, () {}),
-        _buildToolButton('Speed', Icons.speed_rounded, () {}),
-      ],
-    );
-  }
-
-  Widget _buildToolButton(String label, IconData icon, VoidCallback onPressed) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: _getCardColor(),
-        foregroundColor: _getTextColor(),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: _getBorderColor()),
-        ),
-        elevation: 0,
-      ),
-      icon: Icon(icon, size: 16),
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 12),
       ),
     );
   }
 
-  Widget _buildQuickActions() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildQuickActionButton(
-          _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          _isPlaying ? 'Pause' : 'Play',
-          _togglePlayPause,
-          _primaryColor,
-        ),
-        _buildQuickActionButton(
-          Icons.content_cut_rounded,
-          'Split Here',
-          () => _splitAtCurrentTime(),
-          const Color(0xFF10B981),
-        ),
-        _buildQuickActionButton(
-          Icons.undo_rounded,
-          'Undo',
-          _undoAction,
-          const Color(0xFFF59E0B),
-        ),
-        _buildQuickActionButton(
-          Icons.redo_rounded,
-          'Redo',
-          _redoAction,
-          const Color(0xFF3B82F6),
-        ),
-      ],
+  ButtonStyle _getButtonStyle({Color? backgroundColor}) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: backgroundColor ?? _primaryColor,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 
-  Widget _buildQuickActionButton(
+  Widget _buildToolButton(
       IconData icon, String label, VoidCallback onTap, Color color) {
     return Column(
       children: [
@@ -689,7 +896,7 @@ class _VideoEditorState extends State<VideoEditor> {
             border: Border.all(color: color.withOpacity(0.3)),
           ),
           child: IconButton(
-            icon: Icon(icon, color: color, size: 20),
+            icon: Icon(icon, color: color),
             onPressed: onTap,
           ),
         ),
@@ -697,98 +904,38 @@ class _VideoEditorState extends State<VideoEditor> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: _getTextColor().withOpacity(0.7),
-          ),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: _getTextColor()),
         ),
       ],
     );
   }
 
-  // Action Methods
-  void _togglePlayPause() {
-    setState(() => _isPlaying = !_isPlaying);
-  }
-
-  void _splitAtCurrentTime() {
-    setState(() {
-      _cutMarkers.add(_videoProgress);
-      _cutMarkers.sort();
-    });
-    _showSnackBar('Video split at ${_formatDuration(_currentTime)}');
-  }
-
-  void _trimStart() {
-    _showSnackBar('Trim start point set');
-  }
-
-  void _trimEnd() {
-    _showSnackBar('Trim end point set');
-  }
-
-  void _addCutMarker() {
-    setState(() {
-      _cutMarkers.add(_videoProgress);
-      _cutMarkers.sort();
-    });
-    _showSnackBar('Cut marker added');
-  }
-
-  void _deleteCutMarker(double position) {
-    setState(() {
-      _cutMarkers.remove(position);
-    });
-    _showSnackBar('Cut marker removed');
-  }
-
-  void _handleTimelineTap(TapDownDetails details) {
-    final box = context.findRenderObject() as RenderBox;
-    final localPosition = box.globalToLocal(details.globalPosition);
-    final width = box.size.width - 32;
-    final newProgress = (localPosition.dx / width).clamp(0.0, 1.0);
-
-    setState(() {
-      _videoProgress = newProgress;
-      _draggingPosition = newProgress;
-      _currentTime = Duration(
-          milliseconds:
-              (_totalDuration.inMilliseconds * _videoProgress).round());
-    });
-  }
-
-  void _handleTimelineDrag(DragUpdateDetails details) {
-    final width = MediaQuery.of(context).size.width - 32;
-    final newPosition = _draggingPosition + (details.delta.dx / width);
-
-    setState(() {
-      _draggingPosition = newPosition.clamp(0.0, 1.0);
-      _videoProgress = _draggingPosition;
-      _currentTime = Duration(
-          milliseconds:
-              (_totalDuration.inMilliseconds * _videoProgress).round());
-    });
-  }
-
-  void _undoAction() {
-    _showSnackBar('Undo last action');
-  }
-
-  void _redoAction() {
-    _showSnackBar('Redo last action');
-  }
-
-  void _exportVideo() {
-    _showSnackBar('Exporting video...');
-    // Navigate back when done
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    });
+  Widget _buildExportProgress() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _getCardColor(),
+        border: Border(top: BorderSide(color: _getBorderColor())),
+      ),
+      child: Column(
+        children: [
+          LinearProgressIndicator(value: _exportProgress, color: _primaryColor),
+          const SizedBox(height: 8),
+          Text(
+            'Processing: ${(_exportProgress * 100).toStringAsFixed(1)}%',
+            style:
+                TextStyle(color: _getTextColor(), fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSnackBar(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -799,37 +946,27 @@ class _VideoEditorState extends State<VideoEditor> {
     );
   }
 
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "$twoDigitMinutes:$twoDigitSeconds";
-  }
-
-  // Color getters
+  // Theme colors
   final Color _primaryColor = const Color(0xFF4361EE);
 
-  Color _getBackgroundColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF0A0A14)
-        : const Color(0xFFF8FAFF);
-  }
+  Color _getBackgroundColor() => Theme.of(context).brightness == Brightness.dark
+      ? const Color(0xFF0A0A14)
+      : const Color(0xFFF8FAFF);
+  Color _getTextColor() => Theme.of(context).brightness == Brightness.dark
+      ? Colors.white
+      : const Color(0xFF1A202C);
+  Color _getCardColor() => Theme.of(context).brightness == Brightness.dark
+      ? const Color(0xFF1A1A2E)
+      : Colors.white;
+  Color _getBorderColor() => Theme.of(context).brightness == Brightness.dark
+      ? const Color(0xFF2D3748)
+      : const Color(0xFFE2E8F0);
 
-  Color _getTextColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF1A202C);
-  }
-
-  Color _getCardColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1A1A2E)
-        : Colors.white;
-  }
-
-  Color _getBorderColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF2D3748)
-        : const Color(0xFFE2E8F0);
+  @override
+  void dispose() {
+    _videoController.removeListener(_videoListener);
+    _videoController.dispose();
+    _videoService.dispose();
+    super.dispose();
   }
 }

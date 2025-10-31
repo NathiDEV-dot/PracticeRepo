@@ -7,7 +7,8 @@ import 'pages/educator/auth_screen.dart';
 import 'pages/student/auth_screen.dart';
 import 'pages/parent/auth_screen.dart';
 import 'pages/educator/dashboard.dart';
-import 'pages/student/dashboard.dart';
+import 'pages/student/dashboard.dart'
+    as student_dashboard; // ✅ Fixed: Added alias
 import 'pages/parent/dashboard.dart';
 import 'pages/student/lesson_viewer.dart';
 import 'pages/student/homework_submission.dart';
@@ -59,7 +60,8 @@ class SignSyncApp extends StatelessWidget {
         '/student/dashboard': (context) {
           final args = ModalRoute.of(context)!.settings.arguments
               as Map<String, dynamic>?;
-          return StudentDashboard(
+          return student_dashboard.StudentDashboard(
+            // ✅ Fixed: Using aliased import
             studentData: args ?? {},
           );
         },
@@ -172,7 +174,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
             Navigator.pushReplacementNamed(context, '/educator/dashboard');
             break;
           case 'student':
-            // ✅ FIX: Pass required studentData parameter using named route with arguments
+            // ✅ FIXED: Using aliased import for StudentDashboard
             Navigator.pushReplacementNamed(
               context,
               '/student/dashboard',
