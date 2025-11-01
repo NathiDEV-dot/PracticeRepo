@@ -9,14 +9,10 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart'; // Added import
 import 'package:path/path.dart' as path;
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
-
-// Web-specific imports
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
 
 import '../../../core/services/lesson_creation_service.dart';
 import '../../../core/models/lesson_data.dart';
@@ -140,22 +136,18 @@ class _LessonCreationState extends State<LessonCreation> {
         _webVideoFileName = null;
       });
 
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.video,
-        allowMultiple: false,
-      );
+      // REPLACED FilePicker with ImagePicker
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile =
+          await picker.pickVideo(source: ImageSource.gallery);
 
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.single;
-
+      if (pickedFile != null) {
         if (kIsWeb) {
-          if (file.bytes == null) {
-            throw Exception('Unable to access video file on web');
-          }
-
-          _temporaryVideoPath = file.name;
-          _webVideoBytes = file.bytes!;
-          _webVideoFileName = file.name;
+          // Web-specific handling
+          final fileBytes = await pickedFile.readAsBytes();
+          _temporaryVideoPath = pickedFile.name;
+          _webVideoBytes = fileBytes;
+          _webVideoFileName = pickedFile.name;
 
           setState(() {
             _lessonData = _lessonData.copyWith(
@@ -166,7 +158,7 @@ class _LessonCreationState extends State<LessonCreation> {
           });
 
           final estimatedDuration =
-              await _estimateVideoDurationWeb(file.bytes!.length);
+              await _estimateVideoDurationWeb(fileBytes.length);
 
           setState(() {
             _lessonData = _lessonData.copyWith(
@@ -176,17 +168,14 @@ class _LessonCreationState extends State<LessonCreation> {
             _isExtractingDuration = false;
           });
 
-          await _initializeWebVideoPreview(file.bytes!, file.name);
-          _showFileSelected(file);
+          await _initializeWebVideoPreview(fileBytes, pickedFile.name);
+          _showFileSelected(pickedFile);
         } else {
-          if (file.path == null) {
-            throw Exception('Unable to access video file path');
-          }
+          // Mobile handling
+          final videoFile = File(pickedFile.path);
+          _temporaryVideoPath = pickedFile.path;
 
-          final videoFile = File(file.path!);
-          _temporaryVideoPath = file.path!;
-
-          final ext = path.extension(file.name).toLowerCase();
+          final ext = path.extension(pickedFile.name).toLowerCase();
           final validExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
 
           if (!validExtensions.contains(ext)) {
@@ -194,7 +183,11 @@ class _LessonCreationState extends State<LessonCreation> {
                 'Invalid video format. Supported: MP4, MOV, AVI, MKV, WEBM');
           }
 
-          _lessonService.validateVideoFile(file);
+          // Validate file size for mobile
+          final fileSize = await videoFile.length();
+          if (fileSize > 500 * 1024 * 1024) {
+            throw Exception('Video file too large. Maximum size is 500MB.');
+          }
 
           setState(() {
             _lessonData = _lessonData.copyWith(
@@ -215,7 +208,7 @@ class _LessonCreationState extends State<LessonCreation> {
           });
 
           await _initializeVideoPlayer(videoFile: videoFile);
-          _showFileSelected(file);
+          _showFileSelected(pickedFile);
         }
       }
     } catch (e) {
@@ -306,10 +299,7 @@ class _LessonCreationState extends State<LessonCreation> {
 
   Future<String?> _createBlobUrl(Uint8List bytes) async {
     try {
-      if (kIsWeb) {
-        final blob = html.Blob([bytes], 'video/mp4');
-        return html.Url.createObjectUrlFromBlob(blob);
-      }
+      // For mobile app, return null or handle differently
       return null;
     } catch (e) {
       if (kDebugMode) {
@@ -1741,7 +1731,7 @@ class _LessonCreationState extends State<LessonCreation> {
     return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
   }
 
-  void _showFileSelected(PlatformFile file) {
+  void _showFileSelected(XFile file) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Selected: ${file.name}'),
