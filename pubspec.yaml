@@ -14,10 +14,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   supabase_flutter: ^2.1.2
   flutter_dotenv: ^5.1.0
-  file_picker:
-    git:
-      url: https://github.com/miguelpruivo/flutter_file_picker.git
-      ref: master
+  # file_picker: ^5.5.0
   image_picker: ^1.1.2
   path: ^1.8.3
   mime: ^1.0.5
@@ -26,7 +23,7 @@ dependencies:
   chewie: ^1.7.2  # For better video controls
   
   # Audio recording dependencies
-  record: ^5.0.4  # Cross-platform audio recording
+  record: ^6.1.2 # Cross-platform audio recording
   permission_handler: ^11.0.1  # Handle microphone permissions
   path_provider: ^2.1.1  # Get file system paths for saving recordings
 

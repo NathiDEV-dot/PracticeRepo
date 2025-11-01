@@ -4,10 +4,10 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:video_player/video_player.dart';
+import 'package:image_picker/image_picker.dart';
 
 class LessonCreationService {
   final SupabaseClient _client;
@@ -324,9 +324,11 @@ class LessonCreationService {
   }
 
   // Validate video file
-  void validateVideoFile(PlatformFile file) {
+  void validateVideoFile(XFile file) async {
     if (!kIsWeb) {
-      if (file.size > 500 * 1024 * 1024) {
+      // Get file size for mobile
+      final fileData = await file.readAsBytes();
+      if (fileData.length > 500 * 1024 * 1024) {
         throw Exception('Video file too large. Maximum size is 500MB.');
       }
     }
